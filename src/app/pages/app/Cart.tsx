@@ -30,9 +30,11 @@ function CartItemRow({ item }: { item: ReturnType<typeof useCart>["items"][numbe
     <div ref={constraintsRef} className="relative overflow-hidden rounded-2xl">
       {/* Delete background */}
       <motion.div
-        style={{ opacity: deleteOpacity }}
         className="absolute inset-0 flex items-center justify-end pr-5 rounded-2xl"
-        style={{ backgroundColor: "#FEE2E2" } as React.CSSProperties}
+        style={{
+          opacity: deleteOpacity,
+          backgroundColor: "#FEE2E2",
+        }}
       >
         <Trash2 size={20} className="text-red-400" />
       </motion.div>
