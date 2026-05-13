@@ -109,8 +109,8 @@ function Navbar() {
 
 function HeroSection() {
   const images = [
-    "https://plus.unsplash.com/premium_photo-1663100219417-eabaefc03fcb?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjV8fGJvYXJkZ2FtZXxlbnwwfHwwfHx8MA%3D%3D",
-    "https://plus.unsplash.com/premium_photo-1664301485771-f8896c87af2c?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDV8fGJvYXJkZ2FtZXxlbnwwfHwwfHx8MA%3D%3D",
+    "https://plus.unsplash.com/premium_photo-1663100219417-eabaefc03fcb?w=1200&auto=format&fit=crop&q=80",
+    "https://plus.unsplash.com/premium_photo-1664301485771-f8896c87af2c?w=1200&auto=format&fit=crop&q=80",
     "https://media.istockphoto.com/id/2235135467/photo/homemade-japanese-taiyaki-dessert.webp?a=1&b=1&s=612x612&w=0&k=20&c=H-z1PXA_Y8qK1y31OLmX2liFNmcUJalSontMI4PLTRE="
   ];
 
@@ -283,19 +283,19 @@ const PROBLEM_CARDS = [
     badge: "Board Game",
     label: "Sibuk Gadget !",
     desc: "Nongkrong tapi sibuk masing-masing dengan HP? Membosankan!",
-    image: "https://images.unsplash.com/photo-1679539143915-947178dbea00?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHBsYXklMjBnYWRnZXR8ZW58MHx8MHx8fDA%3D",
+    image: "https://images.unsplash.com/photo-1679539143915-947178dbea00?w=1200&auto=format&fit=crop&q=80",
   },
   {
     badge: "Edukasi",
     label: "Bingung Hiburan",
     desc: "Mau main tapi capek yang itu-itu saja? Butuh variasi baru!",
-    image: "https://images.unsplash.com/photo-1719494206741-79831f9f4d51?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8Ym9hcmRnYW1lfGVufDB8fDB8fHww",
+    image: "https://images.unsplash.com/photo-1719494206741-79831f9f4d51?w=1200&auto=format&fit=crop&q=80",
   },
   {
     badge: "Experience",
     label: "Kurang Bonding",
     desc: "Ingin aktivitas yang benar-benar mendekatkan hubungan?",
-    image: "https://images.unsplash.com/photo-1577897113292-3b95936e5206?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cGxheSUyMGZhbWlseXxlbnwwfHwwfHx8MA%3D%3D",
+    image: "https://images.unsplash.com/photo-1577897113292-3b95936e5206?w=1200&auto=format&fit=crop&q=80",
   },
 ];
 
@@ -358,22 +358,22 @@ function ProblemSection() {
 function WhyChooseUs() {
   const benefits = [
     {
-      image: "https://images.unsplash.com/photo-1611891487122-207579d67d98?w=500&auto=format&fit=crop",
+      image: "https://images.unsplash.com/photo-1611891487122-207579d67d98?w=800&auto=format&fit=crop&q=80",
       title: "Koleksi Game Edukatif Terlengkap",
       desc: "Ratusan board game & digital game yang mengasah otak."
     },
     {
-      image: "https://images.unsplash.com/photo-1516714435131-44d6b64dc6a2?w=500&auto=format&fit=crop",
+      image: "https://images.unsplash.com/photo-1516714435131-44d6b64dc6a2?w=800&auto=format&fit=crop&q=80",
       title: "Kuliner Menggugah Selera",
       desc: "Pilihan makanan dan minuman lezat pendamping main."
     },
     {
-      image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop",
+      image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80",
       title: "Social Bonding",
       desc: "Ciptakan momen berkualitas dan kedekatan yang nyata."
     },
     {
-      image: "https://images.unsplash.com/photo-1673260984699-44b403381769?w=500&auto=format&fit=crop",
+      image: "https://images.unsplash.com/photo-1673260984699-44b403381769?w=800&auto=format&fit=crop&q=80",
       title: "Edukatif & Menyenangkan",
       desc: "Game dipilih untuk melatih strategi, kreativitas & teamwork"
     },
@@ -387,7 +387,7 @@ function WhyChooseUs() {
         <FadeUp>
           <div className="relative pb-16 lg:pb-0">
             <img
-              src="src/assets/images/sebangku.png"
+              src="https://images.unsplash.com/photo-1577896849786-738ed6c78bd3?w=1200&auto=format&fit=crop&q=80"
               alt="Sebangku Experience"
               className="rounded-[40px] shadow-2xl w-full aspect-[4/5] lg:aspect-square object-cover"
             />
@@ -541,19 +541,19 @@ function HowItWorks() {
       id: "01",
       title: "Pilih Paket / Meja",
       desc: "Datang langsung atau reservasi online melalui WhatsApp. Tim kami siap menyambut dan mengarahkan Anda ke meja terbaik.",
-      image: "https://images.unsplash.com/photo-1698188667999-753bc61fcca4?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjZ8fGJvYXJkZ2FtZXxlbnwwfHwwfHx8MA%3D%3D"
+      image: "https://images.unsplash.com/photo-1698188667999-753bc61fcca4?w=1000&auto=format&fit=crop&q=80"
     },
     {
       id: "02",
       title: "Pilih Permainan",
       desc: "Jelajahi 50+ koleksi boardgame kami. Game master kami yang ramah siap membantu menjelaskan cara main dari awal hingga siap.",
-      image: "https://images.unsplash.com/photo-1673260984699-44b403381769?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwcm9maWxlLXBhZ2V8MTZ8fHxlbnwwfHx8fHw%3D"
+      image: "https://images.unsplash.com/photo-1673260984699-44b403381769?w=1000&auto=format&fit=crop&q=80"
     },
     {
       id: "03",
       title: "Nikmati Momen",
       desc: "Main sepuasnya sambil menikmati taiyaki fresh dan minuman segar. Waktu berkualitas tak terlupakan bersama orang-orang tersayang.",
-      image: "https://images.unsplash.com/photo-1676562330796-593b68d44e20?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8ODl8fGVuam95JTIwdGhlJTIwbW9tZW50JTIwcGxheWluZyUyMHRoZSUyMGdhbWV8ZW58MHx8MHx8fDA%3D"
+      image: "https://images.unsplash.com/photo-1676562330796-593b68d44e20?w=1000&auto=format&fit=crop&q=80"
     },
   ];
 
