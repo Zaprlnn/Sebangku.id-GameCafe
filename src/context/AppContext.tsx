@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { supabase } from "../lib/supabase"; // Sesuaikan lokasi inisialisasi client Supabase Anda
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface UserProfile {
@@ -11,6 +12,7 @@ export interface UserProfile {
   level: string;
   levelColor: string;
   memberSince: string;
+  role: "Owner" | "Kasir" | "Customer"; 
 }
 
 export interface Notification {
@@ -30,66 +32,14 @@ export interface AppState {
   notifications: Notification[];
   unreadCount: number;
   sessionStart: Date;
+  loading: boolean; // Flag loading untuk memastikan status auth beres diperiksa
   markAllRead: () => void;
   markRead: (id: string) => void;
   addNotification: (n: Omit<Notification, "id" | "createdAt" | "read">) => void;
-  // GM Sheet global state
   gmSheetOpen: boolean;
   openGMSheet: () => void;
   closeGMSheet: () => void;
 }
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_USER: UserProfile = {
-  id: "usr_001",
-  name: "Budi Santoso",
-  username: "budi_gamer",
-  email: "budi@email.com",
-  avatarSrc: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23F55F1F' rx='8'/><rect x='3' y='3' width='26' height='26' rx='6' fill='%23FF8A50'/><circle cx='16' cy='13' r='5' fill='%23fff'/><ellipse cx='16' cy='26' rx='9' ry='6' fill='%23fff'/></svg>`,
-  poin: 1_250,
-  level: "Silver",
-  levelColor: "#94A3B8",
-  memberSince: "Jan 2025",
-};
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "n1",
-    type: "order",
-    title: "Pesanan Sedang Disiapkan",
-    body: "Catan + 2 Kopi Susu sedang dalam proses",
-    read: false,
-    createdAt: new Date(Date.now() - 3 * 60_000),
-    icon: "☕",
-  },
-  {
-    id: "n2",
-    type: "loyalty",
-    title: "+50 Poin Didapat!",
-    body: "Pesanan terakhirmu memberikan 50 poin",
-    read: false,
-    createdAt: new Date(Date.now() - 12 * 60_000),
-    icon: "⭐",
-  },
-  {
-    id: "n3",
-    type: "promo",
-    title: "Promo Malam Ini 🎉",
-    body: "Buy 2 board games, get snack gratis sampai pukul 22.00",
-    read: true,
-    createdAt: new Date(Date.now() - 60 * 60_000),
-    icon: "🎁",
-  },
-  {
-    id: "n4",
-    type: "system",
-    title: "Selamat Datang di Sebangku!",
-    body: "Jangan lupa cek game baru koleksi kami minggu ini",
-    read: true,
-    createdAt: new Date(Date.now() - 24 * 60 * 60_000),
-    icon: "🎲",
-  },
-];
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const AppContext = createContext<AppState | null>(null);
@@ -103,10 +53,9 @@ export function AppProvider({
   tableId: string;
   isGuest: boolean;
 }) {
-  const [user] = useState<UserProfile | null>(isGuest ? null : MOCK_USER);
-  const [notifications, setNotifications] = useState<Notification[]>(
-    isGuest ? [] : MOCK_NOTIFICATIONS
-  );
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [sessionStart] = useState(new Date());
   const [gmSheetOpen, setGmSheetOpen] = useState(false);
 
@@ -135,19 +84,80 @@ export function AppProvider({
   const openGMSheet = useCallback(() => setGmSheetOpen(true), []);
   const closeGMSheet = useCallback(() => setGmSheetOpen(false), []);
 
-  // ── Simulate real-time Supabase notification (mock)
-  // In production: replace with Supabase realtime channel subscription
-  // e.g. supabase.channel('notifications').on('INSERT', ...).subscribe()
+  // ── Fungsi Pengambil Data Profil dari Database ─────────────────────────────
+  const fetchUserProfile = async (userId: string, email: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (data && !error) {
+        setUser({
+          id: userId,
+          name: data.name || "User Sebangku",
+          username: data.username || "sebangku_player",
+          email: email,
+          avatarSrc: `https://api.dicebear.com/7.x/bottts/svg?seed=${data.username || userId}`,
+          poin: data.poin || 0,
+          level: data.role === "Customer" ? "Silver" : data.role,
+          levelColor: data.role === "Owner" ? "#EF4444" : data.role === "Kasir" ? "#10B981" : "#94A3B8",
+          memberSince: data.created_at 
+            ? new Date(data.created_at).toLocaleDateString("id-ID", { month: "short", year: "numeric" })
+            : "Baru",
+          role: data.role,
+        });
+      }
+    } catch (err) {
+      console.error("Gagal memuat profil pengguna:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Sinkronisasi Status Auth Nyata dengan Supabase ──────────────────────────
+  useEffect(() => {
+    if (isGuest) {
+      setLoading(false);
+      return;
+    }
+
+    // Ambil sesi aktif pertama kali aplikasi di-mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchUserProfile(session.user.id, session.user.email || "");
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Pasang Listener Perubahan Auth secara Real-time
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchUserProfile(session.user.id, session.user.email || "");
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [isGuest]);
+
+  // ── Simulasi Notifikasi Pembuka Real-time ──────────────────────────────────
   useEffect(() => {
     if (isGuest) return;
     const timer = setTimeout(() => {
       addNotification({
-        type: "order",
-        title: "Pesanan Siap! 🍽️",
-        body: "Pesananmu sudah siap di meja. Selamat menikmati!",
-        icon: "🍽️",
+        type: "system",
+        title: "Selamat Datang di Sebangku! 🎲",
+        body: "Yuk cek koleksi game baru kami minggu ini atau kumpulkan poin transaksi!",
+        icon: "🎲",
       });
-    }, 18_000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [isGuest, addNotification]);
 
@@ -160,6 +170,7 @@ export function AppProvider({
         notifications,
         unreadCount,
         sessionStart,
+        loading,
         markRead,
         markAllRead,
         addNotification,
@@ -179,7 +190,6 @@ export function useAppContext() {
   return ctx;
 }
 
-// ─── Convenience hook for GM sheet ────────────────────────────────────────────
 export function useGMSheet() {
   const { gmSheetOpen, openGMSheet, closeGMSheet } = useAppContext();
   return { gmSheetOpen, openGMSheet, closeGMSheet };

@@ -1,19 +1,33 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Eye, EyeOff, Mail, Lock, User, Phone,
-  ArrowLeft, ArrowRight, AlertCircle, CheckCircle2,
-} from "lucide-react";
+import { Eye, EyeOff, User, Mail, Phone, Lock, ArrowRight, AlertCircle, ArrowLeft } from "lucide-react";
+import { supabase } from "../../lib/supabase";
 import sebangkuLogo from "../../assets/images/logo_sebangku_cafee.png";
 
-// ─── Input Field ──────────────────────────────────────────────────────────────
+// ─── Input Field Component ────────────────────────────────────────────────────
 function InputField({
-  label, type, value, onChange, placeholder, icon, rightSlot, error, autoComplete,
+  label,
+  type,
+  value,
+  onChange,
+  placeholder,
+  icon,
+  rightSlot,
+  error,
+  autoComplete,
+  onKeyDown,
 }: {
-  label: string; type: string; value: string; onChange: (v: string) => void;
-  placeholder: string; icon: React.ReactNode; rightSlot?: React.ReactNode;
-  error?: string; autoComplete?: string;
+  label: string;
+  type: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  icon: React.ReactNode;
+  rightSlot?: React.ReactNode;
+  error?: string;
+  autoComplete?: string;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
 }) {
   const [focused, setFocused] = useState(false);
   return (
@@ -27,16 +41,24 @@ function InputField({
       <div
         className="relative flex items-center rounded-xl transition-all duration-200"
         style={{
-          border: error ? "1.5px solid #EF4444" : focused ? "1.5px solid #3B82F6" : "1.5px solid #E2E8F0",
+          border: error
+            ? "1.5px solid #EF4444"
+            : focused
+            ? "1.5px solid #3B82F6"
+            : "1.5px solid #E2E8F0",
           background: focused ? "#F8FAFF" : "#F8FAFC",
         }}
       >
         <span className="absolute left-3.5 text-[#94A3B8]">{icon}</span>
         <input
-          type={type} value={value}
+          type={type}
+          value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder} autoComplete={autoComplete}
-          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={onKeyDown}
           className="w-full pl-10 pr-10 py-3.5 bg-transparent focus:outline-none text-[#1E293B] placeholder:text-[#CBD5E1]"
           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }}
         />
@@ -45,70 +67,18 @@ function InputField({
       <AnimatePresence>
         {error && (
           <motion.p
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
             className="flex items-center gap-1 text-red-500 text-xs"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
-            <AlertCircle size={12} />{error}
+            <AlertCircle size={12} />
+            {error}
           </motion.p>
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-// ─── Right Branding Panel (shared) ───────────────────────────────────────────
-function BrandingPanel() {
-  const features = [
-    { icon: "📖", text: "Logbook riwayat game" },
-    { icon: "📊", text: "Statistik & win rate" },
-    { icon: "🧾", text: "Riwayat transaksi" },
-    { icon: "🎯", text: "Tracking sesi favorit" },
-  ];
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 30 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-      className="hidden md:flex w-[340px] shrink-0 flex-col items-center justify-center relative overflow-hidden rounded-3xl m-2"
-      style={{ background: "linear-gradient(160deg, #1E3A5F 0%, #0F2340 50%, #0A1628 100%)" }}
-    >
-      <div className="absolute w-72 h-72 rounded-full opacity-10"
-        style={{ background: "radial-gradient(circle, #3B82F6, transparent)", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }} />
-      <div className="absolute w-48 h-48 rounded-full opacity-20"
-        style={{ background: "radial-gradient(circle, #60A5FA, transparent)", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }} />
-
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 20 }}
-        className="relative z-10 flex flex-col items-center gap-6 px-8 text-center"
-      >
-        <img
-          src={sebangkuLogo} alt="Sebangku Game Cafe" className="object-contain"
-          style={{ width: "140px", height: "auto", imageRendering: "auto", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }}
-        />
-        <div>
-          <h2 style={{ fontFamily: "'Poppins', sans-serif" }} className="text-white font-black text-xl mb-2 leading-tight">
-            Bergabung dengan<br />Sebangku
-          </h2>
-          <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-white/70 text-sm font-medium leading-relaxed">
-            Daftarkan dirimu dan mulai<br />catat perjalanan bermainmu!
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 w-full">
-          {features.map((item) => (
-            <div key={item.text} className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <span className="text-base">{item.icon}</span>
-              <span style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-white/80 text-xs font-semibold">
-                {item.text}
-              </span>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-    </motion.div>
   );
 }
 
@@ -118,50 +88,125 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const tableId = searchParams.get("table") || "";
 
-  // Form state
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  // State untuk menampung seluruh data form pendaftaran
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
-    name?: string; phone?: string; email?: string;
-    password?: string; confirmPassword?: string;
+    fullName?: string;
+    username?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    general?: string;
   }>({});
 
-  // Success state
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [registeredName, setRegisteredName] = useState("");
-
+  // Fungsi Validasi Client-side
   const validate = () => {
-    const e: typeof errors = {};
-    if (!name.trim()) e.name = "Nama wajib diisi";
-    if (!phone.trim()) e.phone = "Nomor HP wajib diisi";
-    else if (!/^08\d{8,11}$/.test(phone.replace(/\s/g, "")))
-      e.phone = "Format nomor HP tidak valid (contoh: 08xxxxxxxxxx)";
-    if (!email) e.email = "Email wajib diisi";
-    else if (!/\S+@\S+\.\S+/.test(email)) e.email = "Format email tidak valid";
-    if (!password) e.password = "Password wajib diisi";
-    else if (password.length < 6) e.password = "Password minimal 6 karakter";
-    if (!confirmPassword) e.confirmPassword = "Konfirmasi password wajib diisi";
-    else if (password !== confirmPassword) e.confirmPassword = "Password tidak cocok";
-    return e;
+    const newErrors: typeof errors = {};
+
+    if (!fullName.trim()) newErrors.fullName = "Nama lengkap wajib diisi";
+    
+    if (!username.trim()) {
+      newErrors.username = "Username wajib diisi";
+    } else if (username.includes(" ") || username.includes("@")) {
+      newErrors.username = "Username tidak boleh mengandung spasi atau karakter '@'";
+    }
+
+    if (!email.trim()) {
+      newErrors.email = "Email wajib diisi";
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Format email tidak valid";
+    }
+
+    if (!phone.trim()) newErrors.phone = "Nomor telepon wajib diisi";
+
+    if (!password) {
+      newErrors.password = "Password wajib diisi";
+    } else if (password.length < 6) {
+      newErrors.password = "Password minimal 6 karakter";
+    }
+
+    return newErrors;
   };
 
-  const handleRegister = async () => {
-    const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    setErrors({});
+  const handleRegister = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
     setIsLoading(true);
-    // Mock register — replace with Supabase auth
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsLoading(false);
-    // Show success screen using the name entered in the form
-    setRegisteredName(name.trim().split(" ")[0]);
-    setIsSuccess(true);
+    setErrors({});
+
+    try {
+      // 1. Validasi duplikasi: Cek apakah username sudah dipakai orang lain
+      const { data: existingUser, error: checkError } = await supabase
+        .from("users")
+        .select("username")
+        .ilike("username", username.trim())
+        .maybeSingle();
+
+      if (existingUser) {
+        setErrors({ username: "Username ini sudah digunakan oleh orang lain." });
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Daftarkan kredensial akun ke Supabase Auth internal
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password,
+      });
+
+      if (authError) {
+        setErrors({ general: authError.message });
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. Masukkan profil lengkap user ke tabel public.users
+      if (authData?.user) {
+       // KODE LAMA YANG LALU (Hapus/Ganti bagian ini)
+// ✨ KODE BARU (Menggunakan UPDATE karena baris sudah dibuat oleh Trigger)
+const { error: dbError } = await supabase
+  .from("users")
+  .update({
+    username: username.trim().toLowerCase(),
+    name: fullName.trim(),
+    phone: phone.trim(),
+  })
+  .eq("id", authData.user.id); // Mencari baris yang ID-nya sama dengan akun auth baru
+
+        if (dbError) {
+          console.error("Gagal insert profile:", dbError.message);
+          setErrors({ general: "Akun auth berhasil dibuat, tetapi gagal menyimpan data ke profil database." });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // 4. Registrasi sukses, arahkan ke halaman login
+      alert("Registrasi berhasil! Silakan masuk menggunakan akun baru Anda.");
+      navigate(`/login${tableId ? `?table=${tableId}` : ""}`);
+
+    } catch (err) {
+      setErrors({ general: "Terjadi kesalahan sistem saat memproses registrasi." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleRegister();
   };
 
   return (
@@ -169,228 +214,226 @@ export default function RegisterPage() {
       className="min-h-screen w-full flex items-center justify-center p-4 md:p-8"
       style={{ background: "linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 50%, #EFF6FF 100%)" }}
     >
-      {/* Back button — hidden on success */}
-      {!isSuccess && (
-        <motion.button
-          initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-          whileHover={{ x: -3 }} whileTap={{ scale: 0.95 }}
-          onClick={() => navigate(tableId ? `/login?table=${tableId}` : "/login")}
-          className="fixed top-6 left-6 flex items-center gap-2 text-[#64748B] hover:text-[#3B82F6] transition-colors cursor-pointer z-10"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
-        >
-          <ArrowLeft size={18} />
-          <span className="text-sm font-semibold">Kembali ke Login</span>
-        </motion.button>
-      )}
+      {/* Tombol Kembali */}
+      <motion.button
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        whileHover={{ x: -3 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => navigate(-1)}
+        className="fixed top-5 left-5 flex items-center gap-2 text-[#64748B] hover:text-[#3B82F6] transition-colors cursor-pointer z-10"
+        style={{ fontFamily: "'DM Sans', sans-serif" }}
+      >
+        <ArrowLeft size={18} />
+        <span className="text-sm font-semibold hidden sm:inline">Kembali</span>
+      </motion.button>
 
       {/* Main Card */}
       <motion.div
         initial={{ opacity: 0, y: 30, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[940px] bg-white rounded-3xl shadow-2xl overflow-hidden flex"
-        style={{ boxShadow: "0 24px 80px rgba(59,130,246,0.12)" }}
+        className="w-full max-w-[900px] bg-white rounded-3xl shadow-2xl overflow-hidden flex"
+        style={{ minHeight: "580px", boxShadow: "0 24px 80px rgba(59,130,246,0.12)" }}
       >
-        {/* ── Left Panel ── */}
-        <div className="flex-1 flex flex-col justify-center px-6 py-8 md:px-14 md:py-10 overflow-y-auto">
-          <AnimatePresence mode="wait">
+        {/* ── Left Panel: Form ───────────────────────────────── */}
+        <div className="flex-1 flex flex-col justify-center px-6 py-8 md:px-14 md:py-10">
+          {/* Header */}
+          <div className="mb-6">
+            <p
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              className="text-[#3B82F6] font-bold text-sm mb-1"
+            >
+              Join Us
+            </p>
+            <h1
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+              className="text-4xl font-black text-[#0F172A] mb-1"
+            >
+              Sign Up
+            </h1>
+            <p
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              className="text-[#64748B] text-sm"
+            >
+              Lengkapi data di bawah untuk membuat akun baru
+            </p>
+          </div>
 
-            {/* ── SUCCESS SCREEN ── */}
-            {isSuccess ? (
+          {/* General Error Alert */}
+          <AnimatePresence>
+            {errors.general && (
               <motion.div
-                key="success"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col items-start gap-6"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-3 py-2.5 text-sm mb-4"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
-                {/* Logo badge */}
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #3B82F6, #60A5FA)" }}
-                  >
-                    <span className="text-white text-sm font-black">S</span>
-                  </div>
-                  <span style={{ fontFamily: "'Poppins', sans-serif" }} className="font-black text-[#0F172A] text-base">
-                    Sebangku
-                  </span>
-                </div>
-
-                {/* Checkmark + message */}
-                <div className="w-full flex flex-col items-center gap-3 py-2">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.15 }}
-                    className="w-16 h-16 rounded-full border-4 border-emerald-400 flex items-center justify-center"
-                    style={{ background: "rgba(52,211,153,0.08)" }}
-                  >
-                    <CheckCircle2 size={32} className="text-emerald-500" strokeWidth={2.5} />
-                  </motion.div>
-
-                  <div className="text-center">
-                    <h1 style={{ fontFamily: "'Poppins', sans-serif" }} className="text-2xl font-black text-[#0F172A] mb-1">
-                      Registrasi Berhasil! 🎉
-                    </h1>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[#1E293B] text-sm font-medium">
-                      Halo, <span className="font-black text-[#0F172A]">{registeredName}</span>!<br />
-                      Akun Anda telah berhasil dibuat.
-                    </p>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[#3B82F6] text-xs mt-1.5">
-                      Silakan login menggunakan email dan password yang telah Anda daftarkan.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Feature card */}
-                <div className="w-full rounded-2xl p-5" style={{ border: "1.5px solid #E2E8F0", background: "#F8FAFC" }}>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-xs font-black text-[#64748B] uppercase tracking-widest mb-3">
-                    Sebagai Customer Anda Bisa:
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {[
-                      { icon: "📋", text: "Melihat riwayat sesi bermain" },
-                      { icon: "📝", text: "Menulis catatan di game logbook" },
-                      { icon: "📊", text: "Melihat statistik bermain Anda" },
-                      { icon: "🧾", text: "Mengakses riwayat transaksi" },
-                    ].map((f) => (
-                      <div key={f.text} className="flex items-center gap-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                        <span className="text-sm">{f.icon}</span>
-                        <span className="text-sm text-[#1E293B] font-medium">{f.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <motion.button
-                  whileHover={{ translateY: -3, boxShadow: "0 10px 28px rgba(59,130,246,0.4)" }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => navigate(tableId ? `/login?table=${tableId}` : "/login")}
-                  className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl cursor-pointer"
-                  style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    background: "linear-gradient(135deg, #3B82F6, #60A5FA)",
-                    color: "white", fontWeight: 700, fontSize: "15px",
-                    boxShadow: "0 4px 16px rgba(59,130,246,0.3)",
-                  }}
-                >
-                  Masuk Sekarang <ArrowRight size={18} />
-                </motion.button>
-              </motion.div>
-
-            ) : (
-              /* ── FORM SCREEN ── */
-              <motion.div
-                key="form"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="flex flex-col gap-0"
-              >
-                {/* Header */}
-                <div className="mb-7">
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                      style={{ background: "linear-gradient(135deg, #3B82F6, #60A5FA)" }}>
-                      <span className="text-white text-sm font-black">S</span>
-                    </div>
-                    <span style={{ fontFamily: "'Poppins', sans-serif" }} className="font-black text-[#0F172A] text-base">
-                      Sebangku
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => navigate(tableId ? `/login?table=${tableId}` : "/login")}
-                    className="flex items-center gap-1.5 text-[#3B82F6] text-sm font-semibold mb-5 hover:underline cursor-pointer"
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                  >
-                    <ArrowLeft size={14} /> Kembali ke Login
-                  </button>
-
-                  <h1 style={{ fontFamily: "'Poppins', sans-serif" }} className="text-3xl font-black text-[#0F172A] mb-1.5">
-                    Daftar Akun Player
-                  </h1>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[#3B82F6] text-sm font-medium">
-                    Buat akun untuk mencatat riwayat bermain Anda
-                  </p>
-                </div>
-
-                {/* Form Fields */}
-                <div className="flex flex-col gap-4">
-                  <InputField label="Nama Lengkap" type="text" value={name} onChange={setName}
-                    placeholder="Masukkan nama lengkap" icon={<User size={16} />} error={errors.name} autoComplete="name" />
-                  <InputField label="Nomor HP" type="tel" value={phone} onChange={setPhone}
-                    placeholder="08xxxxxxxxxx" icon={<Phone size={16} />} error={errors.phone} autoComplete="tel" />
-                  <InputField label="Email" type="email" value={email} onChange={setEmail}
-                    placeholder="contoh@email.com" icon={<Mail size={16} />} error={errors.email} autoComplete="email" />
-                  <InputField
-                    label="Password" type={showPassword ? "text" : "password"} value={password} onChange={setPassword}
-                    placeholder="Minimal 6 karakter" icon={<Lock size={16} />} error={errors.password} autoComplete="new-password"
-                    rightSlot={
-                      <button type="button" onClick={() => setShowPassword(!showPassword)}
-                        className="text-[#94A3B8] hover:text-[#3B82F6] transition-colors cursor-pointer" tabIndex={-1}>
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    }
-                  />
-                  <InputField
-                    label="Konfirmasi Password" type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={setConfirmPassword}
-                    placeholder="Ulangi password" icon={<Lock size={16} />} error={errors.confirmPassword} autoComplete="new-password"
-                    rightSlot={
-                      <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                        className="text-[#94A3B8] hover:text-[#3B82F6] transition-colors cursor-pointer" tabIndex={-1}>
-                        {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    }
-                  />
-
-                  {/* Terms */}
-                  <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-xs text-[#64748B]">
-                    Dengan mendaftar, Anda menyetujui{" "}
-                    <Link to="/terms" className="text-[#3B82F6] font-bold hover:underline">Syarat & Ketentuan</Link>{" "}
-                    Sebangku.
-                  </p>
-
-                  {/* Submit */}
-                  <motion.button
-                    onClick={handleRegister} disabled={isLoading}
-                    whileHover={!isLoading ? { translateY: -3, boxShadow: "0 10px 28px rgba(59,130,246,0.4)" } : {}}
-                    whileTap={!isLoading ? { scale: 0.97 } : {}}
-                    className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl cursor-pointer transition-all"
-                    style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      background: isLoading ? "#E2E8F0" : "linear-gradient(135deg, #3B82F6, #60A5FA)",
-                      color: isLoading ? "#94A3B8" : "white", fontWeight: 700, fontSize: "15px",
-                      boxShadow: isLoading ? "none" : "0 4px 16px rgba(59,130,246,0.3)",
-                    }}
-                  >
-                    {isLoading ? (
-                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
-                        className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
-                    ) : (
-                      <> Buat Akun <ArrowRight size={18} /> </>
-                    )}
-                  </motion.button>
-                </div>
-
-                {/* Login link */}
-                <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-center text-sm text-[#64748B] mt-5">
-                  Sudah punya akun?{" "}
-                  <Link to={tableId ? `/login?table=${tableId}` : "/login"} className="text-[#3B82F6] font-bold hover:underline">
-                    Masuk Sekarang →
-                  </Link>
-                </p>
+                <AlertCircle size={15} />
+                {errors.general}
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Form Fields Group */}
+          <div className="flex flex-col gap-3.5">
+            <InputField
+              label="Nama Lengkap"
+              type="text"
+              value={fullName}
+              onChange={setFullName}
+              placeholder="Masukkan nama lengkap Anda"
+              icon={<User size={16} />}
+              error={errors.fullName}
+              onKeyDown={handleKeyDown}
+            />
+
+            <InputField
+              label="Username"
+              type="text"
+              value={username}
+              onChange={setUsername}
+              placeholder="Buat username unik (tanpa spasi)"
+              icon={<User size={16} />}
+              error={errors.username}
+              onKeyDown={handleKeyDown}
+            />
+
+            <InputField
+              label="Email Address"
+              type="email"
+              value={email}
+              onChange={setEmail}
+              placeholder="Masukkan alamat email aktif"
+              icon={<Mail size={16} />}
+              error={errors.email}
+              autoComplete="email"
+              onKeyDown={handleKeyDown}
+            />
+
+            <InputField
+              label="Nomor Telepon"
+              type="tel"
+              value={phone}
+              onChange={setPhone}
+              placeholder="Contoh: 08123456789"
+              icon={<Phone size={16} />}
+              error={errors.phone}
+              onKeyDown={handleKeyDown}
+            />
+
+            <InputField
+              label="Password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={setPassword}
+              placeholder="Minimal 6 karakter"
+              icon={<Lock size={16} />}
+              autoComplete="new-password"
+              error={errors.password}
+              onKeyDown={handleKeyDown}
+              rightSlot={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-[#94A3B8] hover:text-[#3B82F6] transition-colors cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              }
+            />
+
+            {/* Submit Button */}
+            <motion.button
+              onClick={() => handleRegister()}
+              disabled={isLoading}
+              whileHover={!isLoading ? { translateY: -3, boxShadow: "0 10px 28px rgba(59,130,246,0.4)" } : {}}
+              whileTap={!isLoading ? { scale: 0.97 } : {}}
+              className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl cursor-pointer transition-all text-white font-bold text-[15px] mt-2"
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                background: isLoading ? "#E2E8F0" : "linear-gradient(135deg, #3B82F6, #60A5FA)",
+                boxShadow: isLoading ? "none" : "0 4px 16px rgba(59,130,246,0.3)",
+              }}
+            >
+              {isLoading ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                  className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                />
+              ) : (
+                <>
+                  Daftar Akun
+                  <ArrowRight size={18} />
+                </>
+              )}
+            </motion.button>
+          </div>
+
+          {/* Footer Link */}
+          <p
+            style={{ fontFamily: "'DM Sans', sans-serif" }}
+            className="text-center text-sm text-[#64748B] mt-6"
+          >
+            Sudah memiliki akun?{" "}
+            <Link
+              to={`/login${tableId ? `?table=${tableId}` : ""}`}
+              className="text-[#3B82F6] font-bold hover:underline"
+            >
+              Masuk Di Sini
+            </Link>
+          </p>
         </div>
 
-        {/* ── Right: Branding Panel ── */}
-        <BrandingPanel />
+        {/* ── Right Panel: Branding ──────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="hidden md:flex w-[320px] shrink-0 flex-col items-center justify-center relative overflow-hidden rounded-3xl m-2"
+          style={{
+            background: "linear-gradient(160deg, #1E3A5F 0%, #0F2340 50%, #0A1628 100%)",
+          }}
+        >
+          {/* Efek Lingkaran Dekoratif */}
+          <div
+            className="absolute w-72 h-72 rounded-full opacity-10"
+            style={{
+              background: "radial-gradient(circle, #3B82F6, transparent)",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+            }}
+          />
+
+          {/* Logo & Info Samping */}
+          <div className="relative z-10 flex flex-col items-center gap-6 px-8 text-center">
+            <img
+              src={sebangkuLogo}
+              alt="Sebangku Game Cafe"
+              className="object-contain w-[140px]"
+              style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }}
+            />
+
+            <div>
+              <h2
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+                className="text-white font-black text-xl mb-1"
+              >
+                Board Game Cafe
+              </h2>
+              <p
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+                className="text-white/70 text-xs font-medium leading-relaxed"
+              >
+                Daftar sekali untuk akses pesanan makanan, booking board game, dan kumpulkan poin reward!
+              </p>
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
     </div>
   );
