@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronDown, ArrowRight, Gamepad2, Users,
@@ -29,20 +30,13 @@ function FadeUp({ children, delay = 0, className = "" }: { children: React.React
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const navLinks = [
-    { name: "Beranda", href: "#" },
-    { name: "Menu", href: "#menu" },
-    { name: "Blog", href: "#blog" },
-    { name: "Media", href: "#media" },
-    { name: "Kontak", href: "#kontak" },
-  ];
 
   return (
     <nav
@@ -69,9 +63,10 @@ function Navbar() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => navigate("/login")}
             className="bg-[#3B82F6] text-white px-8 py-3 rounded-xl font-black text-sm shadow-xl shadow-[#3B82F6]/20 cursor-pointer"
           >
-            HUBUNGI KAMI
+            RESERVASI / MASUK
           </motion.button>
         </div>
 
@@ -84,7 +79,7 @@ function Navbar() {
         </button>
       </div>
 
-      {/* Mobile Menu - Simplified to only show reservation */}
+      {/* Mobile Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -94,8 +89,11 @@ function Navbar() {
             className="lg:hidden bg-white border-t border-black/5 overflow-hidden mt-4 rounded-2xl shadow-2xl"
           >
             <div className="flex flex-col p-6 gap-4">
-              <button className="bg-[#3B82F6] text-white py-4 rounded-xl font-black mt-2 shadow-lg shadow-[#3B82F6]/20">
-                HUBUNGI KAMI
+              <button
+                onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}
+                className="bg-[#3B82F6] text-white py-4 rounded-xl font-black mt-2 shadow-lg shadow-[#3B82F6]/20 cursor-pointer"
+              >
+                RESERVASI / MASUK
               </button>
             </div>
           </motion.div>
@@ -115,6 +113,7 @@ function HeroSection() {
   ];
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -146,6 +145,7 @@ function HeroSection() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => navigate("/login")}
                 className="bg-[#3B82F6] text-white px-10 py-5 rounded-2xl font-black text-xl shadow-xl shadow-[#3B82F6]/30 flex items-center gap-3 group cursor-pointer transition-all"
               >
                 RESERVASI SEKARANG <ArrowRight size={22} />
@@ -536,6 +536,7 @@ function TestimonialsSection() {
 // ─── How It Works ───────────────────────────────────────────────────────────
 
 function HowItWorks() {
+  const navigate = useNavigate();
   const steps = [
     {
       id: "01",
@@ -613,7 +614,8 @@ function HowItWorks() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-white text-[#3B82F6] px-10 py-5 rounded-2xl font-black text-lg shadow-xl hover:shadow-2xl transition-all flex items-center gap-3"
+              onClick={() => navigate("/login")}
+              className="bg-white text-[#3B82F6] px-10 py-5 rounded-2xl font-black text-lg shadow-xl hover:shadow-2xl transition-all flex items-center gap-3 cursor-pointer"
             >
               Reservasi Sekarang <ArrowRight size={20} />
             </motion.button>
@@ -734,6 +736,7 @@ function FAQSection() {
 // ─── Final CTA Section ───────────────────────────────────────────────────────
 
 function FinalCTA() {
+  const navigate = useNavigate();
   return (
     <section className="py-20 px-6 bg-white">
       <div className="max-w-7xl mx-auto bg-[#F0F7FF] rounded-[48px] p-12 md:p-20 relative overflow-hidden border border-[#3B82F6]/10">
@@ -759,7 +762,8 @@ function FinalCTA() {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-[#3B82F6] text-white px-10 py-5 rounded-2xl font-black text-lg shadow-xl shadow-[#3B82F6]/30 flex items-center gap-3"
+                  onClick={() => navigate("/login")}
+                  className="bg-[#3B82F6] text-white px-10 py-5 rounded-2xl font-black text-lg shadow-xl shadow-[#3B82F6]/30 flex items-center gap-3 cursor-pointer"
                 >
                   RESERVASI TEMPAT SEKARANG
                 </motion.button>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, ArrowRight, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, ArrowLeft } from "lucide-react";
+import sebangkuLogo from "../../assets/images/logo_sebangku_cafee.png";
 
 // ─── Google Icon SVG ──────────────────────────────────────────────────────────
 function GoogleIcon() {
@@ -42,7 +43,7 @@ function InputField({
     <div className="flex flex-col gap-1.5">
       <label
         style={{ fontFamily: "'DM Sans', sans-serif" }}
-        className="text-sm font-semibold text-[#1C1410]"
+        className="text-xs font-bold text-[#64748B] uppercase tracking-widest"
       >
         {label}
       </label>
@@ -50,14 +51,14 @@ function InputField({
         className="relative flex items-center rounded-xl transition-all duration-200"
         style={{
           border: error
-            ? "2px solid #EF4444"
+            ? "1.5px solid #EF4444"
             : focused
-            ? "2px solid #45A1FD"
-            : "2px solid #E5E7EB",
-          background: focused ? "#FFFAF8" : "#F9F9F9",
+            ? "1.5px solid #3B82F6"
+            : "1.5px solid #E2E8F0",
+          background: focused ? "#F8FAFF" : "#F8FAFC",
         }}
       >
-        <span className="absolute left-3.5 text-[#9CA3AF]">{icon}</span>
+        <span className="absolute left-3.5 text-[#94A3B8]">{icon}</span>
         <input
           type={type}
           value={value}
@@ -66,8 +67,8 @@ function InputField({
           autoComplete={autoComplete}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          className="w-full pl-10 pr-10 py-3.5 bg-transparent focus:outline-none text-[#1C1410] placeholder:text-[#C4C4C4]"
-          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "15px" }}
+          className="w-full pl-10 pr-10 py-3.5 bg-transparent focus:outline-none text-[#1E293B] placeholder:text-[#CBD5E1]"
+          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }}
         />
         {rightSlot && <span className="absolute right-3.5">{rightSlot}</span>}
       </div>
@@ -93,7 +94,7 @@ function InputField({
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const tableId = searchParams.get("table") || "T01";
+  const tableId = searchParams.get("table") || "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -115,19 +116,16 @@ export default function LoginPage() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
     setIsLoading(true);
-
-    // Mock login — replace with Supabase auth
     await new Promise((r) => setTimeout(r, 1400));
     setIsLoading(false);
-    navigate(`/app?table=${tableId}`);
+    navigate(tableId ? `/app?table=${tableId}` : "/app");
   };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
-    // Mock OAuth — replace with Supabase Google OAuth
     await new Promise((r) => setTimeout(r, 1200));
     setIsLoading(false);
-    navigate(`/app?table=${tableId}`);
+    navigate(tableId ? `/app?table=${tableId}` : "/app");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -136,114 +134,84 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col"
-      style={{ background: "linear-gradient(160deg, #EBF5FF 0%, #FFE8D9 100%)" }}
+      className="min-h-screen w-full flex items-center justify-center p-4 md:p-8"
+      style={{ background: "linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 50%, #EFF6FF 100%)" }}
     >
       {/* Back button */}
-      <div className="px-5 pt-6">
-        <motion.button
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          whileHover={{ x: -3 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => navigate(`/scan?table=${tableId}`)}
-          className="flex items-center gap-2 text-[#6B4436] cursor-pointer"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
-        >
-          <ArrowLeft size={18} />
-          <span className="text-sm font-medium">Kembali</span>
-        </motion.button>
-      </div>
+      <motion.button
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        whileHover={{ x: -3 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => navigate("/")}
+        className="fixed top-5 left-5 flex items-center gap-2 text-[#64748B] hover:text-[#3B82F6] transition-colors cursor-pointer z-10"
+        style={{ fontFamily: "'DM Sans', sans-serif" }}
+      >
+        <ArrowLeft size={18} />
+        <span className="text-sm font-semibold hidden sm:inline">Kembali</span>
+      </motion.button>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-5 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-sm"
-        >
+      {/* Main Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-[900px] bg-white rounded-3xl shadow-2xl overflow-hidden flex"
+        style={{ minHeight: "520px", boxShadow: "0 24px 80px rgba(59,130,246,0.12)" }}
+      >
+        {/* ── Left: Form Panel ─────────────────────────────────── */}
+        <div className="flex-1 flex flex-col justify-center px-6 py-8 md:px-14 md:py-12">
           {/* Header */}
-          <div className="text-center mb-8">
-            <motion.div
-              initial={{ scale: 0.7, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 18 }}
-              className="inline-flex items-center justify-center w-16 h-16 bg-[#45A1FD] rounded-2xl mb-4 shadow-lg"
-              style={{ boxShadow: "0 8px 24px rgba(69,161,253,0.35)" }}
+          <div className="mb-8">
+            <p
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              className="text-[#3B82F6] font-bold text-sm mb-1"
             >
-              <span className="text-2xl">🎲</span>
-            </motion.div>
+              Board Game Cafe
+            </p>
             <h1
-              style={{ fontFamily: "'Fraunces', serif", fontSize: "28px" }}
-              className="font-bold text-[#1C1410] leading-tight"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+              className="text-4xl font-black text-[#0F172A] mb-2"
             >
-              Masuk ke Sebangku
+              Welcome
             </h1>
             <p
               style={{ fontFamily: "'DM Sans', sans-serif" }}
-              className="text-[#6B4436] text-sm mt-1.5"
+              className="text-[#64748B] text-sm"
             >
-              Meja <span className="text-[#45A1FD] font-semibold">{tableId}</span> menunggumu!
+              Masuk dengan akun email Anda
             </p>
           </div>
 
-          {/* Card */}
-          <div className="bg-white rounded-3xl shadow-xl p-6 flex flex-col gap-4">
-            {/* General error */}
-            <AnimatePresence>
-              {errors.general && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-3 py-2.5 text-sm"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  <AlertCircle size={15} />
-                  {errors.general}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Google OAuth */}
-            <motion.button
-              onClick={handleGoogleLogin}
-              disabled={isLoading}
-              whileHover={{ translateY: -3, boxShadow: "0 6px 16px rgba(0,0,0,0.12)" }}
-              whileTap={{ scale: 0.97 }}
-              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border-2 border-[#E5E7EB] bg-white cursor-pointer transition-all"
-              style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: "14px", color: "#1C1410" }}
-            >
-              <GoogleIcon />
-              Lanjutkan dengan Google
-            </motion.button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-[#E5E7EB]" />
-              <span
+          {/* General error */}
+          <AnimatePresence>
+            {errors.general && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-3 py-2.5 text-sm mb-4"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
-                className="text-xs text-[#9CA3AF] font-medium"
               >
-                atau dengan email
-              </span>
-              <div className="flex-1 h-px bg-[#E5E7EB]" />
-            </div>
+                <AlertCircle size={15} />
+                {errors.general}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            {/* Email */}
+          {/* Form */}
+          <div className="flex flex-col gap-4">
             <InputField
               label="Email"
               type="email"
               value={email}
               onChange={setEmail}
-              placeholder="nama@email.com"
+              placeholder="contoh@boardverse.com"
               icon={<Mail size={16} />}
               error={errors.email}
               autoComplete="email"
             />
 
-            {/* Password */}
             <InputField
               label="Password"
               type={showPassword ? "text" : "password"}
@@ -257,7 +225,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-[#9CA3AF] hover:text-[#45A1FD] transition-colors cursor-pointer"
+                  className="text-[#94A3B8] hover:text-[#3B82F6] transition-colors cursor-pointer"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -268,29 +236,29 @@ export default function LoginPage() {
             {/* Forgot password */}
             <div className="flex justify-end -mt-1">
               <Link
-                to={`/forgot-password?table=${tableId}`}
+                to={`/forgot-password${tableId ? `?table=${tableId}` : ""}`}
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
-                className="text-sm text-[#45A1FD] font-medium hover:underline"
+                className="text-sm text-[#3B82F6] font-semibold hover:underline"
               >
                 Lupa password?
               </Link>
             </div>
 
-            {/* Submit */}
+            {/* Sign In Button */}
             <motion.button
               onClick={handleLogin}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
-              whileHover={!isLoading ? { translateY: -4, boxShadow: "0 10px 28px rgba(69,161,253,0.4)" } : {}}
+              whileHover={!isLoading ? { translateY: -3, boxShadow: "0 10px 28px rgba(59,130,246,0.4)" } : {}}
               whileTap={!isLoading ? { scale: 0.97 } : {}}
               className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl cursor-pointer transition-all"
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                background: isLoading ? "#E5E7EB" : "linear-gradient(135deg, #45A1FD, #82C2FF)",
-                color: isLoading ? "#9CA3AF" : "white",
+                background: isLoading ? "#E2E8F0" : "linear-gradient(135deg, #3B82F6, #60A5FA)",
+                color: isLoading ? "#94A3B8" : "white",
                 fontWeight: 700,
                 fontSize: "15px",
-                boxShadow: isLoading ? "none" : "0 4px 16px rgba(69,161,253,0.3)",
+                boxShadow: isLoading ? "none" : "0 4px 16px rgba(59,130,246,0.3)",
               }}
             >
               {isLoading ? (
@@ -301,50 +269,162 @@ export default function LoginPage() {
                 />
               ) : (
                 <>
-                  Masuk
+                  Sign In
                   <ArrowRight size={18} />
                 </>
               )}
             </motion.button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-[#E2E8F0]" />
+              <span
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+                className="text-xs text-[#94A3B8] font-medium"
+              >
+                atau
+              </span>
+              <div className="flex-1 h-px bg-[#E2E8F0]" />
+            </div>
+
+            {/* Google OAuth */}
+            <motion.button
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              whileHover={{ translateY: -2, boxShadow: "0 6px 16px rgba(0,0,0,0.10)" }}
+              whileTap={{ scale: 0.97 }}
+              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-[#E2E8F0] bg-white cursor-pointer transition-all"
+              style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: "14px", color: "#1E293B" }}
+            >
+              <GoogleIcon />
+              Lanjutkan dengan Google
+            </motion.button>
           </div>
 
           {/* Register link */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
+          <p
             style={{ fontFamily: "'DM Sans', sans-serif" }}
-            className="text-center text-sm text-[#6B4436] mt-5"
+            className="text-center text-sm text-[#64748B] mt-6"
           >
             Belum punya akun?{" "}
             <Link
-              to={`/register?table=${tableId}`}
-              className="text-[#45A1FD] font-bold hover:underline"
+              to={`/register${tableId ? `?table=${tableId}` : ""}`}
+              className="text-[#3B82F6] font-bold hover:underline"
             >
-              Daftar gratis &amp; dapat 100 Poin! 🎉
+              Daftar Sekarang →
             </Link>
-          </motion.p>
+          </p>
 
-          {/* Guest hint */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-            className="text-center text-xs text-[#9CA3AF] mt-2"
-          >
-            Atau{" "}
-            <button
-              onClick={() => navigate(`/app?table=${tableId}&mode=guest`)}
-              className="text-[#9CA3AF] underline cursor-pointer hover:text-[#6B4436] transition-colors"
+          {/* Guest mode */}
+          {tableId && (
+            <p
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              className="text-center text-xs text-[#94A3B8] mt-2"
             >
-              lanjut sebagai tamu
-            </button>{" "}
-            tanpa akun
-          </motion.p>
+              Atau{" "}
+              <button
+                onClick={() => navigate(`/app?table=${tableId}&mode=guest`)}
+                className="text-[#94A3B8] underline cursor-pointer hover:text-[#64748B] transition-colors"
+              >
+                lanjut sebagai tamu
+              </button>{" "}
+              tanpa akun
+            </p>
+          )}
+        </div>
+
+        {/* ── Right: Branding Panel ─────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="hidden md:flex w-[320px] shrink-0 flex-col items-center justify-center relative overflow-hidden rounded-3xl m-2"
+          style={{
+            background: "linear-gradient(160deg, #1E3A5F 0%, #0F2340 50%, #0A1628 100%)",
+          }}
+        >
+          {/* Background decorative circles */}
+          <div
+            className="absolute w-72 h-72 rounded-full opacity-10"
+            style={{
+              background: "radial-gradient(circle, #3B82F6, transparent)",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+            }}
+          />
+          <div
+            className="absolute w-48 h-48 rounded-full opacity-20"
+            style={{
+              background: "radial-gradient(circle, #60A5FA, transparent)",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+            }}
+          />
+
+          {/* Logo */}
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 20 }}
+            className="relative z-10 flex flex-col items-center gap-6 px-8 text-center"
+          >
+            <img
+              src={sebangkuLogo}
+              alt="Sebangku Game Cafe"
+              className="object-contain"
+              style={{
+                width: "140px",
+                height: "auto",
+                imageRendering: "auto",
+                filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
+              }}
+            />
+
+            <div>
+              <h2
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+                className="text-white font-black text-xl mb-1 leading-tight"
+              >
+                Board Game Cafe
+              </h2>
+              <p
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+                className="text-white/70 text-sm font-medium leading-relaxed"
+              >
+                Experience Management<br />System
+              </p>
+            </div>
+
+            {/* Feature pills */}
+            <div className="flex flex-col gap-2 w-full mt-2">
+              {[
+                { icon: "🎲", text: "50+ Koleksi Board Game" },
+                { icon: "⭐", text: "Sistem Loyalty & Poin" },
+                { icon: "🍟", text: "Kuliner Lezat & Taiyaki" },
+              ].map((item) => (
+                <div
+                  key={item.text}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+                  style={{
+                    background: "rgba(255,255,255,0.07)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <span className="text-base">{item.icon}</span>
+                  <span
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                    className="text-white/80 text-xs font-semibold"
+                  >
+                    {item.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
         </motion.div>
-      </div>
+      </motion.div>
     </div>
   );
 }
-
