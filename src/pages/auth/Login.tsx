@@ -132,18 +132,43 @@ export default function LoginPage() {
         loginEmail = userProfile.email;
       }
 
-      // 2. Eksekusi Login ke Supabase Auth (Baik input awal email / hasil tukar dari username)
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      // 2. Eksekusi Login ke Supabase Auth (Destruktur ke 'authData')
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password: password,
       });
 
       if (authError) {
         setErrors({ general: "Password salah atau kredensial tidak valid." });
+        setIsLoading(false); // Pastikan loading dimatikan jika error
         return;
       }
 
-      navigate(tableId ? `/app?table=${tableId}` : "/app");
+      // 3. CEK ROLE DARI DATABASE SETELAH LOGIN BERHASIL
+if (authData?.user) {
+  const { data: userProfile, error: roleError } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", authData.user.id)
+    .single();
+
+  if (roleError) {
+    setErrors({ general: "Gagal mengambil data hak akses pengguna." });
+    return;
+  }
+
+  // 4. PENGALIHAN RUTE BERDASARKAN FILE DI image_4be59e.png
+  if (userProfile?.role === "Owner") {
+    // Mengarah ke halaman OwnerApp.tsx
+    navigate("/app/owner"); 
+  } else if (userProfile?.role === "Kasir") {
+    // Mengarah ke halaman Kasir.tsx
+    navigate("/app/kasir"); 
+  } else {
+    // Mengarah ke halaman Customer.tsx (Default /app)
+    navigate(tableId ? `/app?table=${tableId}` : "/app");
+  }
+}
       
     } catch (err) {
       setErrors({ general: "Terjadi kesalahan pada sistem." });
