@@ -59,54 +59,67 @@ function InputField({
 
 // ─── Right Branding Panel (shared) ───────────────────────────────────────────
 function BrandingPanel() {
-  const features = [
-    { icon: "📖", text: "Logbook riwayat game" },
-    { icon: "📊", text: "Statistik & win rate" },
-    { icon: "🧾", text: "Riwayat transaksi" },
-    { icon: "🎯", text: "Tracking sesi favorit" },
-  ];
   return (
     <motion.div
-      initial={{ opacity: 0, x: 30 }}
+      initial={{ opacity: 0, x: 40 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
       className="hidden md:flex w-[340px] shrink-0 flex-col items-center justify-center relative overflow-hidden rounded-3xl m-2"
       style={{ background: "linear-gradient(160deg, #1E3A5F 0%, #0F2340 50%, #0A1628 100%)" }}
     >
-      <div className="absolute w-72 h-72 rounded-full opacity-10"
-        style={{ background: "radial-gradient(circle, #3B82F6, transparent)", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }} />
-      <div className="absolute w-48 h-48 rounded-full opacity-20"
-        style={{ background: "radial-gradient(circle, #60A5FA, transparent)", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }} />
-
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 20 }}
-        className="relative z-10 flex flex-col items-center gap-6 px-8 text-center"
-      >
-        <img
-          src={sebangkuLogo} alt="Sebangku Game Cafe" className="object-contain"
-          style={{ width: "140px", height: "auto", imageRendering: "auto", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }}
+      {/* Animated rings */}
+      {[1, 2, 3].map((i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full border border-blue-400/20"
+          style={{ width: 100 + i * 80, height: 100 + i * 80, top: "50%", left: "50%", translateX: "-50%", translateY: "-50%" }}
+          animate={{ scale: [1, 1.05, 1], opacity: [0.2, 0.4, 0.2] }}
+          transition={{ duration: 3 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 }}
         />
-        <div>
-          <h2 style={{ fontFamily: "'Poppins', sans-serif" }} className="text-white font-black text-xl mb-2 leading-tight">
-            Bergabung dengan<br />Sebangku
-          </h2>
-          <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-white/70 text-sm font-medium leading-relaxed">
-            Daftarkan dirimu dan mulai<br />catat perjalanan bermainmu!
+      ))}
+
+      {/* Floating particles */}
+      {[...Array(8)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-1 h-1 bg-blue-400 rounded-full"
+          style={{ left: `${15 + (i * 11) % 70}%`, top: `${10 + (i * 17) % 80}%` }}
+          animate={{ y: [0, -20, 0], opacity: [0.3, 0.8, 0.3] }}
+          transition={{ duration: 2.5 + i * 0.4, repeat: Infinity, ease: "easeInOut", delay: i * 0.3 }}
+        />
+      ))}
+
+      {/* Logo + branding */}
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, type: "spring", stiffness: 260, damping: 20 }}
+        className="relative z-10 flex flex-col items-center justify-center px-8 text-center gap-4"
+      >
+        <motion.img
+          src={sebangkuLogo}
+          alt="Sebangku Game Cafe"
+          className="object-contain"
+          style={{ width: "200px", height: "auto", filter: "drop-shadow(0 4px 20px rgba(96,165,250,0.4))" }}
+          animate={{ filter: ["drop-shadow(0 4px 20px rgba(96,165,250,0.4))", "drop-shadow(0 4px 30px rgba(96,165,250,0.8))", "drop-shadow(0 4px 20px rgba(96,165,250,0.4))"] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        />
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+        >
+          <p className="text-white/50 text-xs font-semibold uppercase tracking-[0.2em] mb-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Selamat Datang di
           </p>
-        </div>
-        <div className="flex flex-col gap-2 w-full">
-          {features.map((item) => (
-            <div key={item.text} className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <span className="text-base">{item.icon}</span>
-              <span style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-white/80 text-xs font-semibold">
-                {item.text}
-              </span>
-            </div>
-          ))}
-        </div>
+          <p className="text-white font-black text-xl" style={{ fontFamily: "'Poppins', sans-serif" }}>
+            BoardVerse Cafe
+          </p>
+          <p className="text-white/40 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Your ultimate board game experience
+          </p>
+        </motion.div>
       </motion.div>
     </motion.div>
   );

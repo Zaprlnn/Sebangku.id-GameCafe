@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import sebangkuLogo from "../../assets/images/logo_sebangku_cafee.png";
+import ownerPhoto from "../../assets/images/owner_photo.png";
 
 // ─── Google Icon SVG ──────────────────────────────────────────────────────────
 function GoogleIcon() {
@@ -16,49 +17,54 @@ function GoogleIcon() {
   );
 }
 
+// ─── Floating Orb ─────────────────────────────────────────────────────────────
+function FloatingOrb({ size, x, y, delay, color }: { size: number; x: string; y: string; delay: number; color: string }) {
+  return (
+    <motion.div
+      className="absolute rounded-full pointer-events-none"
+      style={{ width: size, height: size, left: x, top: y, background: color, filter: "blur(40px)", opacity: 0.35 }}
+      animate={{ y: [0, -30, 0], x: [0, 15, 0], scale: [1, 1.1, 1] }}
+      transition={{ duration: 6 + delay, repeat: Infinity, ease: "easeInOut", delay }}
+    />
+  );
+}
+
 // ─── Input Field ──────────────────────────────────────────────────────────────
 function InputField({
-  label,
-  type,
-  value,
-  onChange,
-  placeholder,
-  icon,
-  rightSlot,
-  error,
-  autoComplete,
+  label, type, value, onChange, placeholder, icon, rightSlot, error, autoComplete, delay = 0,
 }: {
-  label: string;
-  type: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  icon: React.ReactNode;
-  rightSlot?: React.ReactNode;
-  error?: string;
-  autoComplete?: string;
+  label: string; type: string; value: string;
+  onChange: (v: string) => void; placeholder: string;
+  icon: React.ReactNode; rightSlot?: React.ReactNode;
+  error?: string; autoComplete?: string; delay?: number;
 }) {
   const [focused, setFocused] = useState(false);
   return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        style={{ fontFamily: "'DM Sans', sans-serif" }}
-        className="text-xs font-bold text-[#64748B] uppercase tracking-widest"
-      >
+    <motion.div
+      className="flex flex-col gap-1.5"
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <label style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-xs font-bold text-[#64748B] uppercase tracking-widest">
         {label}
       </label>
-      <div
+      <motion.div
         className="relative flex items-center rounded-xl transition-all duration-200"
-        style={{
-          border: error
-            ? "1.5px solid #EF4444"
-            : focused
-            ? "1.5px solid #3B82F6"
-            : "1.5px solid #E2E8F0",
+        animate={{
+          border: error ? "1.5px solid #EF4444" : focused ? "1.5px solid #3B82F6" : "1.5px solid #E2E8F0",
           background: focused ? "#F8FAFF" : "#F8FAFC",
+          boxShadow: focused ? "0 0 0 4px rgba(59,130,246,0.1)" : "none",
         }}
+        transition={{ duration: 0.2 }}
       >
-        <span className="absolute left-3.5 text-[#94A3B8]">{icon}</span>
+        <motion.span
+          className="absolute left-3.5 text-[#94A3B8]"
+          animate={{ color: focused ? "#3B82F6" : error ? "#EF4444" : "#94A3B8", scale: focused ? 1.1 : 1 }}
+          transition={{ duration: 0.2 }}
+        >
+          {icon}
+        </motion.span>
         <input
           type={type}
           value={value}
@@ -71,12 +77,12 @@ function InputField({
           style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "14px" }}
         />
         {rightSlot && <span className="absolute right-3.5">{rightSlot}</span>}
-      </div>
+      </motion.div>
       <AnimatePresence>
         {error && (
           <motion.p
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
+            initial={{ opacity: 0, height: 0, y: -5 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
             exit={{ opacity: 0, height: 0 }}
             className="flex items-center gap-1 text-red-500 text-xs"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
@@ -86,7 +92,7 @@ function InputField({
           </motion.p>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -100,12 +106,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
 
   const validate = () => {
     const newErrors: typeof errors = {};
-    if (!email) newErrors.email = "Email wajib diisi";
-    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = "Format email tidak valid";
+    if (!email) newErrors.email = "Username/Email wajib diisi";
     if (!password) newErrors.password = "Password wajib diisi";
     else if (password.length < 6) newErrors.password = "Password minimal 6 karakter";
     return newErrors;
@@ -116,72 +122,199 @@ export default function LoginPage() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 1400));
-    setIsLoading(false);
-    navigate(tableId ? `/app?table=${tableId}` : "/app");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }) // Send as email to match backend req.body
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setIsLoading(false);
+        setErrors({ general: data.message || "Gagal login. Cek kembali kredensial Anda." });
+        return;
+      }
+
+      setIsLoading(false);
+      setLoginSuccess(true);
+      
+      // Save authenticated user data
+      localStorage.setItem("sebangku_user", JSON.stringify(data.user));
+
+      await new Promise((r) => setTimeout(r, 900));
+
+      const role = data.user.role;
+      if (role === "Kasir") {
+        navigate(tableId ? `/app/kasir?table=${tableId}` : "/app/kasir");
+      } else if (role === "Owner") {
+        navigate(tableId ? `/app/owner?table=${tableId}` : "/app/owner");
+      } else {
+        navigate(tableId ? `/app/customer?table=${tableId}` : "/app/customer");
+      }
+    } catch (error) {
+      setIsLoading(false);
+      setErrors({ general: "Koneksi ke server gagal. Pastikan backend berjalan." });
+    }
   };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     await new Promise((r) => setTimeout(r, 1200));
     setIsLoading(false);
-    navigate(tableId ? `/app?table=${tableId}` : "/app");
+    navigate(tableId ? `/app/customer?table=${tableId}` : "/app/customer");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleLogin();
   };
 
+  // Detect if owner is typing
+  const isOwnerEmail = email.toLowerCase().includes("owner");
+
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center p-4 md:p-8"
+      className="min-h-screen w-full flex items-center justify-center p-4 md:p-8 relative overflow-hidden"
       style={{ background: "linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 50%, #EFF6FF 100%)" }}
     >
+      {/* ── Animated background orbs ── */}
+      <FloatingOrb size={350} x="-8%" y="-10%" delay={0} color="radial-gradient(circle, #BFDBFE, transparent)" />
+      <FloatingOrb size={280} x="70%" y="60%" delay={2} color="radial-gradient(circle, #C7D2FE, transparent)" />
+      <FloatingOrb size={200} x="80%" y="-15%" delay={1.5} color="radial-gradient(circle, #BAE6FD, transparent)" />
+      <FloatingOrb size={180} x="10%" y="75%" delay={3} color="radial-gradient(circle, #DDD6FE, transparent)" />
+
+      {/* ── Animated grid dots ── */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "radial-gradient(circle, #93C5FD 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+          opacity: 0.25,
+        }}
+      />
+
       {/* Back button */}
       <motion.button
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.2 }}
         whileHover={{ x: -3 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => navigate("/")}
-        className="fixed top-5 left-5 flex items-center gap-2 text-[#64748B] hover:text-[#3B82F6] transition-colors cursor-pointer z-10"
+        className="fixed top-5 left-5 flex items-center gap-2 text-[#64748B] hover:text-[#3B82F6] transition-colors cursor-pointer z-10 bg-white/70 backdrop-blur-sm px-3 py-2 rounded-xl shadow-sm"
         style={{ fontFamily: "'DM Sans', sans-serif" }}
       >
-        <ArrowLeft size={18} />
+        <ArrowLeft size={16} />
         <span className="text-sm font-semibold hidden sm:inline">Kembali</span>
       </motion.button>
 
+      {/* ── Success overlay flash ── */}
+      <AnimatePresence>
+        {loginSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #1E3A5F, #0F2340)" }}
+          >
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
+              className="flex flex-col items-center gap-4"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 0.6, repeat: 2 }}
+                className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center"
+              >
+                <CheckCircle2 size={40} className="text-emerald-400" />
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-white font-black text-2xl"
+                style={{ fontFamily: "'Poppins', sans-serif" }}
+              >
+                Login Berhasil!
+              </motion.p>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-white/60 text-sm"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                Mengalihkan ke dashboard...
+              </motion.p>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: 200 }}
+                transition={{ duration: 0.8, delay: 0.4, ease: "linear" }}
+                className="h-1 bg-emerald-400 rounded-full mt-2"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Card */}
       <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.97 }}
+        initial={{ opacity: 0, y: 40, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[900px] bg-white rounded-3xl shadow-2xl overflow-hidden flex"
-        style={{ minHeight: "520px", boxShadow: "0 24px 80px rgba(59,130,246,0.12)" }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-[920px] bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden flex relative z-10"
+        style={{ minHeight: "540px", boxShadow: "0 32px 80px rgba(59,130,246,0.15), 0 0 0 1px rgba(255,255,255,0.8)" }}
       >
         {/* ── Left: Form Panel ─────────────────────────────────── */}
         <div className="flex-1 flex flex-col justify-center px-6 py-8 md:px-14 md:py-12">
           {/* Header */}
-          <div className="mb-8">
-            <p
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-              className="text-[#3B82F6] font-bold text-sm mb-1"
-            >
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[#3B82F6] font-bold text-sm mb-1">
               Board Game Cafe
             </p>
-            <h1
-              style={{ fontFamily: "'Poppins', sans-serif" }}
-              className="text-4xl font-black text-[#0F172A] mb-2"
-            >
-              Welcome
+            <h1 style={{ fontFamily: "'Poppins', sans-serif" }} className="text-4xl font-black text-[#0F172A] mb-2">
+              Welcome Back 👋
             </h1>
-            <p
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-              className="text-[#64748B] text-sm"
-            >
+            <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[#64748B] text-sm">
               Masuk dengan akun email Anda
             </p>
-          </div>
+          </motion.div>
+
+          {/* Owner detected hint */}
+          <AnimatePresence>
+            {isOwnerEmail && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -10 }}
+                animate={{ opacity: 1, height: "auto", y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 mb-4 overflow-hidden"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden border border-blue-200 shrink-0">
+                  <img src={ownerPhoto} alt="Owner" className="w-full h-full object-cover object-top" />
+                </div>
+                <div>
+                  <p className="text-blue-700 font-bold text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>Login sebagai Owner</p>
+                  <p className="text-blue-500 text-[10px]" style={{ fontFamily: "'DM Sans', sans-serif" }}>Kamu akan diarahkan ke Owner Dashboard</p>
+                </div>
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  className="ml-auto w-2 h-2 rounded-full bg-blue-500"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* General error */}
           <AnimatePresence>
@@ -210,6 +343,7 @@ export default function LoginPage() {
               icon={<Mail size={16} />}
               error={errors.email}
               autoComplete="email"
+              delay={0.2}
             />
 
             <InputField
@@ -221,6 +355,7 @@ export default function LoginPage() {
               icon={<Lock size={16} />}
               autoComplete="current-password"
               error={errors.password}
+              delay={0.3}
               rightSlot={
                 <button
                   type="button"
@@ -234,7 +369,12 @@ export default function LoginPage() {
             />
 
             {/* Forgot password */}
-            <div className="flex justify-end -mt-1">
+            <motion.div
+              className="flex justify-end -mt-1"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
               <Link
                 to={`/forgot-password${tableId ? `?table=${tableId}` : ""}`}
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
@@ -242,53 +382,83 @@ export default function LoginPage() {
               >
                 Lupa password?
               </Link>
-            </div>
+            </motion.div>
 
             {/* Sign In Button */}
             <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
               onClick={handleLogin}
               onKeyDown={handleKeyDown}
-              disabled={isLoading}
-              whileHover={!isLoading ? { translateY: -3, boxShadow: "0 10px 28px rgba(59,130,246,0.4)" } : {}}
+              disabled={isLoading || loginSuccess}
+              whileHover={!isLoading ? { translateY: -3, boxShadow: "0 12px 32px rgba(59,130,246,0.45)" } : {}}
               whileTap={!isLoading ? { scale: 0.97 } : {}}
-              className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl cursor-pointer transition-all"
+              className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl cursor-pointer transition-all overflow-hidden relative"
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                background: isLoading ? "#E2E8F0" : "linear-gradient(135deg, #3B82F6, #60A5FA)",
+                background: loginSuccess
+                  ? "linear-gradient(135deg, #10B981, #059669)"
+                  : isLoading
+                  ? "#E2E8F0"
+                  : "linear-gradient(135deg, #3B82F6, #60A5FA)",
                 color: isLoading ? "#94A3B8" : "white",
                 fontWeight: 700,
                 fontSize: "15px",
                 boxShadow: isLoading ? "none" : "0 4px 16px rgba(59,130,246,0.3)",
               }}
             >
-              {isLoading ? (
+              {/* Shimmer on loading */}
+              {isLoading && (
                 <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
-                  className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                  animate={{ x: ["-100%", "200%"] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
                 />
+              )}
+              {isLoading ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                  />
+                  <span>Memproses...</span>
+                </>
+              ) : loginSuccess ? (
+                <>
+                  <CheckCircle2 size={18} />
+                  Berhasil!
+                </>
               ) : (
                 <>
                   Sign In
-                  <ArrowRight size={18} />
+                  <motion.span animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                    <ArrowRight size={18} />
+                  </motion.span>
                 </>
               )}
             </motion.button>
 
             {/* Divider */}
-            <div className="flex items-center gap-3">
+            <motion.div
+              className="flex items-center gap-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
               <div className="flex-1 h-px bg-[#E2E8F0]" />
-              <span
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-                className="text-xs text-[#94A3B8] font-medium"
-              >
+              <span style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-xs text-[#94A3B8] font-medium">
                 atau
               </span>
               <div className="flex-1 h-px bg-[#E2E8F0]" />
-            </div>
+            </motion.div>
 
             {/* Google OAuth */}
             <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 }}
               onClick={handleGoogleLogin}
               disabled={isLoading}
               whileHover={{ translateY: -2, boxShadow: "0 6px 16px rgba(0,0,0,0.10)" }}
@@ -302,22 +472,24 @@ export default function LoginPage() {
           </div>
 
           {/* Register link */}
-          <p
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
             style={{ fontFamily: "'DM Sans', sans-serif" }}
             className="text-center text-sm text-[#64748B] mt-6"
           >
             Belum punya akun?{" "}
-            <Link
-              to={`/register${tableId ? `?table=${tableId}` : ""}`}
-              className="text-[#3B82F6] font-bold hover:underline"
-            >
+            <Link to={`/register${tableId ? `?table=${tableId}` : ""}`} className="text-[#3B82F6] font-bold hover:underline">
               Daftar Sekarang →
             </Link>
-          </p>
+          </motion.p>
 
-          {/* Guest mode */}
           {tableId && (
-            <p
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.65 }}
               style={{ fontFamily: "'DM Sans', sans-serif" }}
               className="text-center text-xs text-[#94A3B8] mt-2"
             >
@@ -329,99 +501,71 @@ export default function LoginPage() {
                 lanjut sebagai tamu
               </button>{" "}
               tanpa akun
-            </p>
+            </motion.p>
           )}
         </div>
 
         {/* ── Right: Branding Panel ─────────────────────────────── */}
         <motion.div
-          initial={{ opacity: 0, x: 30 }}
+          initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden md:flex w-[320px] shrink-0 flex-col items-center justify-center relative overflow-hidden rounded-3xl m-2"
-          style={{
-            background: "linear-gradient(160deg, #1E3A5F 0%, #0F2340 50%, #0A1628 100%)",
-          }}
+          transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          className="hidden md:flex w-[340px] shrink-0 flex-col items-center justify-center relative overflow-hidden rounded-3xl m-2"
+          style={{ background: "linear-gradient(160deg, #1E3A5F 0%, #0F2340 50%, #0A1628 100%)" }}
         >
-          {/* Background decorative circles */}
-          <div
-            className="absolute w-72 h-72 rounded-full opacity-10"
-            style={{
-              background: "radial-gradient(circle, #3B82F6, transparent)",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-            }}
-          />
-          <div
-            className="absolute w-48 h-48 rounded-full opacity-20"
-            style={{
-              background: "radial-gradient(circle, #60A5FA, transparent)",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-            }}
-          />
+          {/* Animated rings */}
+          {[1, 2, 3].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full border border-blue-400/20"
+              style={{ width: 100 + i * 80, height: 100 + i * 80, top: "50%", left: "50%", translateX: "-50%", translateY: "-50%" }}
+              animate={{ scale: [1, 1.05, 1], opacity: [0.2, 0.4, 0.2] }}
+              transition={{ duration: 3 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 }}
+            />
+          ))}
 
-          {/* Logo */}
+          {/* Floating particles */}
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-blue-400 rounded-full"
+              style={{ left: `${15 + (i * 11) % 70}%`, top: `${10 + (i * 17) % 80}%` }}
+              animate={{ y: [0, -20, 0], opacity: [0.3, 0.8, 0.3] }}
+              transition={{ duration: 2.5 + i * 0.4, repeat: Infinity, ease: "easeInOut", delay: i * 0.3 }}
+            />
+          ))}
+
+          {/* Logo + branding */}
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.3, type: "spring", stiffness: 260, damping: 20 }}
-            className="relative z-10 flex flex-col items-center gap-6 px-8 text-center"
+            initial={{ scale: 0.8, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, type: "spring", stiffness: 260, damping: 20 }}
+            className="relative z-10 flex flex-col items-center justify-center px-8 text-center gap-4"
           >
-            <img
+            <motion.img
               src={sebangkuLogo}
               alt="Sebangku Game Cafe"
               className="object-contain"
-              style={{
-                width: "140px",
-                height: "auto",
-                imageRendering: "auto",
-                filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
-              }}
+              style={{ width: "200px", height: "auto", filter: "drop-shadow(0 4px 20px rgba(96,165,250,0.4))" }}
+              animate={{ filter: ["drop-shadow(0 4px 20px rgba(96,165,250,0.4))", "drop-shadow(0 4px 30px rgba(96,165,250,0.8))", "drop-shadow(0 4px 20px rgba(96,165,250,0.4))"] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             />
 
-            <div>
-              <h2
-                style={{ fontFamily: "'Poppins', sans-serif" }}
-                className="text-white font-black text-xl mb-1 leading-tight"
-              >
-                Board Game Cafe
-              </h2>
-              <p
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-                className="text-white/70 text-sm font-medium leading-relaxed"
-              >
-                Experience Management<br />System
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              <p className="text-white/50 text-xs font-semibold uppercase tracking-[0.2em] mb-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                Selamat Datang di
               </p>
-            </div>
-
-            {/* Feature pills */}
-            <div className="flex flex-col gap-2 w-full mt-2">
-              {[
-                { icon: "🎲", text: "50+ Koleksi Board Game" },
-                { icon: "⭐", text: "Sistem Loyalty & Poin" },
-                { icon: "🍟", text: "Kuliner Lezat & Taiyaki" },
-              ].map((item) => (
-                <div
-                  key={item.text}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
-                  style={{
-                    background: "rgba(255,255,255,0.07)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  <span className="text-base">{item.icon}</span>
-                  <span
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                    className="text-white/80 text-xs font-semibold"
-                  >
-                    {item.text}
-                  </span>
-                </div>
-              ))}
-            </div>
+              <p className="text-white font-black text-xl" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                BoardVerse Cafe
+              </p>
+              <p className="text-white/40 text-xs mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                Your ultimate board game experience
+              </p>
+            </motion.div>
           </motion.div>
         </motion.div>
       </motion.div>

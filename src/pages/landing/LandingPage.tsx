@@ -242,22 +242,22 @@ function HeroSection() {
 
 function MarqueeTicker() {
   const items = [
-    { text: "Board Game Seru", icon: "🎲" },
-    { text: "Taiyaki Fresh", icon: "🐟" },
-    { text: "50+ Koleksi", icon: "🎯" },
-    { text: "Bonding Time", icon: "❤️" },
-    { text: "Puzzle Edukatif", icon: "🧩" },
-    { text: "Rated 4.9/5", icon: "⭐" },
+    "Board Game Seru",
+    "Taiyaki Fresh",
+    "50+ Koleksi",
+    "Bonding Time",
+    "Puzzle Edukatif",
+    "Rated 4.9/5",
   ];
 
   return (
     <div className="py-5 bg-[#3B82F6] overflow-hidden whitespace-nowrap">
       <div className="flex animate-marquee">
-        {[...items, ...items, ...items].map((item, i) => (
-          <div key={i} className="flex items-center px-10">
-            <span className="mr-3 text-xl">{item.icon}</span>
+        {[...items, ...items, ...items].map((text, i) => (
+          <div key={i} className="flex items-center px-10 gap-4">
+            <span className="text-white/40 font-black text-sm select-none">•</span>
             <span className="text-white font-bold text-lg md:text-xl tracking-tight">
-              {item.text}
+              {text}
             </span>
           </div>
         ))}

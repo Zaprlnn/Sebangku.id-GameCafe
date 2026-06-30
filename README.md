@@ -87,10 +87,4 @@ src/
 │   └── scan/        # Modul pemindaian QR Code meja
 ├── routes/          # Konfigurasi routing aplikasi menggunakan React Router 7
 └── styles/          # File styling CSS global
-```
-
----
-
-## 📄 Lisensi
-
-Projek ini dikembangkan sebagai bagian dari tugas akhir/capstone. Hak Cipta & Hak Kekayaan Intelektual dimiliki oleh **Sebangku.id**.
+```   
