@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router";
+import { supabase } from "../../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Eye, EyeOff, Mail, Lock, User, Phone,
@@ -140,6 +141,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [generalError, setGeneralError] = useState("");
   const [errors, setErrors] = useState<{
     name?: string; phone?: string; email?: string;
     password?: string; confirmPassword?: string;
@@ -168,13 +170,37 @@ export default function RegisterPage() {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
+    setGeneralError("");
     setIsLoading(true);
-    // Mock register — replace with Supabase auth
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsLoading(false);
-    // Show success screen using the name entered in the form
-    setRegisteredName(name.trim().split(" ")[0]);
-    setIsSuccess(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            phone,
+            role: "Customer"
+          }
+        }
+      });
+
+      setIsLoading(false);
+
+      if (error) {
+        setGeneralError("Registrasi gagal: " + error.message);
+        return;
+      }
+
+      // Tampilkan layar sukses
+      setRegisteredName(name.trim().split(" ")[0]);
+      setIsSuccess(true);
+
+    } catch (error: any) {
+      setIsLoading(false);
+      setGeneralError("Koneksi ke server gagal. " + error.message);
+    }
   };
 
   return (
@@ -367,6 +393,22 @@ export default function RegisterPage() {
                     <Link to="/terms" className="text-[#3B82F6] font-bold hover:underline">Syarat & Ketentuan</Link>{" "}
                     Sebangku.
                   </p>
+
+                  {/* General error from API */}
+                  <AnimatePresence>
+                    {generalError && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-3 py-2.5 text-sm"
+                        style={{ fontFamily: "'DM Sans', sans-serif" }}
+                      >
+                        <AlertCircle size={15} />
+                        {generalError}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Submit */}
                   <motion.button

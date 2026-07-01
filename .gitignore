@@ -1,1 +1,5 @@
 node_modules
+.env
+backend/.env
+sebangku.db
+backend/sebangku.db

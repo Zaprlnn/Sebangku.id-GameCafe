@@ -1,27 +1,54 @@
-import pkg from 'pg';
-const { Pool } = pkg;
+import pg from 'pg';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// Create a new pool using credentials from .env
-const pool = process.env.DATABASE_URL 
-  ? new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    })
-  : new Pool({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'postgres',
-      database: process.env.DB_NAME || 'sebangku',
-      port: process.env.DB_PORT || 5432,
-      ssl: process.env.DB_HOST !== 'localhost' ? { rejectUnauthorized: false } : false
-    });
+// Load .env
+dotenv.config({ path: resolve(__dirname, '.env') });
 
-pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+const { Pool } = pg;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
 });
 
-export default pool;
+console.log(`🔗 Menghubungkan ke Supabase PostgreSQL...`);
+
+// Wrapper agar tidak perlu mengubah semua db.execute di server.js
+const db = {
+  async execute(queryOrObj) {
+    let sql;
+    let params;
+    
+    if (typeof queryOrObj === 'object') {
+      sql = queryOrObj.sql;
+      params = queryOrObj.args || [];
+    } else {
+      sql = queryOrObj;
+      params = [];
+    }
+
+    // Convert SQLite '?' ke PostgreSQL '$1', '$2', dll.
+    let counter = 1;
+    const pgSql = sql.replace(/\?/g, () => `$${counter++}`);
+
+    try {
+      const result = await pool.query(pgSql, params);
+      
+      // Handle array of results (multiple statements)
+      const finalResult = Array.isArray(result) ? result[result.length - 1] : result;
+      const rows = finalResult?.rows || [];
+
+      return {
+        rows: rows,
+        lastInsertRowid: rows[0]?.id || null, 
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+};
+
+export default db;

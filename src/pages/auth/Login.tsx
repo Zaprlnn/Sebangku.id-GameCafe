@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router";
+import { supabase } from "../../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import sebangkuLogo from "../../assets/images/logo_sebangku_cafee.png";
@@ -124,29 +125,34 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }) // Send as email to match backend req.body
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
       
-      const data = await res.json();
-      
-      if (!res.ok) {
+      if (error) {
         setIsLoading(false);
-        setErrors({ general: data.message || "Gagal login. Cek kembali kredensial Anda." });
+        setErrors({ general: "Gagal login. " + error.message });
         return;
       }
 
       setIsLoading(false);
       setLoginSuccess(true);
       
+      const role = data.user?.user_metadata?.role || "Customer";
+
+      const userData = {
+        id: data.user.id,
+        name: data.user.user_metadata?.name || data.user.email,
+        username: data.user.email,
+        role: role,
+      };
+
       // Save authenticated user data
-      localStorage.setItem("sebangku_user", JSON.stringify(data.user));
+      localStorage.setItem("sebangku_user", JSON.stringify(userData));
 
       await new Promise((r) => setTimeout(r, 900));
 
-      const role = data.user.role;
       if (role === "Kasir") {
         navigate(tableId ? `/app/kasir?table=${tableId}` : "/app/kasir");
       } else if (role === "Owner") {
@@ -154,9 +160,9 @@ export default function LoginPage() {
       } else {
         navigate(tableId ? `/app/customer?table=${tableId}` : "/app/customer");
       }
-    } catch (error) {
+    } catch (error: any) {
       setIsLoading(false);
-      setErrors({ general: "Koneksi ke server gagal. Pastikan backend berjalan." });
+      setErrors({ general: "Koneksi ke server gagal. " + error.message });
     }
   };
 
