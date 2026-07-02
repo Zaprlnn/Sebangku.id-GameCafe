@@ -21,6 +21,7 @@ import mystKidsImg from "../../assets/images/Mysterium Kids.png";
 import luckyCapImg from "../../assets/images/Lucky Captain.png";
 import krakenAttImg from "../../assets/images/Kraken Attack.png";
 import sleepyCasImg from "../../assets/images/Sleepy Castle.png";
+import { supabase } from "../../lib/supabase";
 
 const sidebarMenu = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -1173,7 +1174,7 @@ export default function OwnerPage() {
         if (bgError) throw bgError;
 
         if (bgData) {
-          const mappedGames = bgData.map(g => ({
+          const mappedGames = bgData.map((g: any) => ({
             id: g.id,
             name: g.title,
             category: g.genre,
@@ -1190,7 +1191,7 @@ export default function OwnerPage() {
           setBoardGames(mappedGames);
           
           // Rent games syncs with board games for POS
-          const mappedRentGames = mappedGames.map(g => ({
+          const mappedRentGames = mappedGames.map((g: any) => ({
             id: `g_${g.id}`,
             name: g.name,
             price: g.price,
@@ -1208,7 +1209,7 @@ export default function OwnerPage() {
         if (menuError) throw menuError;
 
         if (menuData) {
-          const mappedMenus = menuData.map(m => ({
+          const mappedMenus = menuData.map((m: any) => ({
             id: m.id,
             name: m.name,
             price: m.price ?? 0,
