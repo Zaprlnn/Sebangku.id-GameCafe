@@ -1141,7 +1141,7 @@ export default function OwnerPage() {
     { id: 2, customer: "Budi Laksono", table: "Table B3", game: "Catan", duration: "1h 05m", timeLeft: "8m", status: "Ending Soon" },
     { id: 3, customer: "Citra Dewi", table: "Table C2", game: "Ticket to Ride", duration: "3h 00m", timeLeft: "All Day", status: "Active" },
     { id: 4, customer: "Dika Pratama", table: "Table A2", game: "Wingspan", duration: "0h 45m", timeLeft: "2h 15m", status: "Active" },
-    { id: 5, customer: "Eva Susanti", table: "Table D1", game: "Root", duration: "1h 30m", timeLeft: "30m", status: "Active" },
+{ id: 5, customer: "Eva Susanti", table: "Table D1", game: "Root", duration: "1h 30m", timeLeft: "30m", status: "Active" },
   ]);
 
   // Mock Top Games
@@ -1159,50 +1159,74 @@ export default function OwnerPage() {
     { id: "TX-9019", customer: "Gita Lestari", items: "Rent + F&B (Mysterium + Tea)", amount: 112000, type: "Combo", time: "1h ago" },
     { id: "TX-9018", customer: "Hendra Wijaya", items: "F&B Order (Nasi Goreng)", amount: 38000, type: "F&B", time: "2h ago" },
   ]);
+  // State for Inventory (will be fetched from DB)
+  const [boardGames, setBoardGames] = useState<any[]>([]);
+  const [rentGames, setRentGames] = useState<any[]>([]);
+  const [fbMenu, setFbMenu] = useState<any[]>([]);
 
-  // Board Games Inventory state synced with localStorage
-  const [boardGames, setBoardGames] = useState<any[]>(() => {
-    const saved = localStorage.getItem("sebangku_board_games");
-    if (saved) return JSON.parse(saved);
-    const initial = [
-      { id: "bg1", name: "Mysterium Kids", category: "Cooperative", stock: 3, rented: 1, price: 15000, status: "Available", active: true, image: mystKidsImg },
-      { id: "bg2", name: "Lucky Captain", category: "Strategy", stock: 2, rented: 1, price: 12000, status: "Available", active: true, image: luckyCapImg },
-      { id: "bg3", name: "Kraken Attack", category: "Strategy", stock: 2, rented: 0, price: 12000, status: "Available", active: true, image: krakenAttImg },
-      { id: "bg4", name: "Sleepy Castle", category: "Strategy", stock: 1, rented: 0, price: 10000, status: "Available", active: true, image: sleepyCasImg },
-      { id: "bg5", name: "Detective Charlie", category: "Strategy", stock: 2, rented: 0, price: 8000, status: "Maintenance", active: false, image: "" },
-    ];
-    localStorage.setItem("sebangku_board_games", JSON.stringify(initial));
-    return initial;
-  });
+  // ── FETCH DATA DARI SUPABASE ──
+  useEffect(() => {
+    const fetchDbData = async () => {
+      try {
+        // Fetch Boardgames
+        const { data: bgData, error: bgError } = await supabase.from('boardgames').select('*');
+        if (bgError) throw bgError;
 
-  // Rental Games list (for POS sync)
-  const [rentGames, setRentGames] = useState<any[]>(() => {
-    const saved = localStorage.getItem("sebangku_rent_games");
-    if (saved) return JSON.parse(saved);
-    const initial = [
-      { id: "g1", name: "Mysterium Kids", price: 15000, category: "Cooperative", emoji: "🎲", image: mystKidsImg, status: "Available", active: true },
-      { id: "g2", name: "Lucky Captain", price: 12000, category: "Strategy", emoji: "🚂", image: luckyCapImg, status: "Available", active: true },
-      { id: "g3", name: "Kraken Attack", price: 12000, category: "Strategy", emoji: "🦠", image: krakenAttImg, status: "Available", active: true },
-      { id: "g4", name: "Sleepy Castle", price: 10000, category: "Strategy", emoji: "🏠", image: sleepyCasImg, status: "Available", active: true },
-    ];
-    localStorage.setItem("sebangku_rent_games", JSON.stringify(initial));
-    return initial;
-  });
+        if (bgData) {
+          const mappedGames = bgData.map(g => ({
+            id: g.id,
+            name: g.title,
+            category: g.genre,
+            stock: g.stock ?? 1,
+            rented: g.rented ?? 0,
+            price: g.price ?? 0,
+            status: g.status === 'Available' ? 'Available' : g.status === 'Maintenance' ? 'Maintenance' : 'In Use',
+            active: g.active ?? (g.status === 'Available'),
+            image: g.image ?? "",
+            emoji: g.emoji ?? "🎲",
+            minPlayers: g.min_players ?? 2,
+            maxPlayers: g.max_players ?? 6
+          }));
+          setBoardGames(mappedGames);
+          
+          // Rent games syncs with board games for POS
+          const mappedRentGames = mappedGames.map(g => ({
+            id: `g_${g.id}`,
+            name: g.name,
+            price: g.price,
+            category: g.category,
+            emoji: g.emoji,
+            image: g.image,
+            status: g.status,
+            active: g.active
+          }));
+          setRentGames(mappedRentGames);
+        }
 
-  // F&B Menu state synced with localStorage
-  const [fbMenu, setFbMenu] = useState<any[]>(() => {
-    const saved = localStorage.getItem("sebangku_products");
-    if (saved) return JSON.parse(saved);
-    const initial = [
-      { id: "p1", name: "Mie Goreng Special", price: 25000, category: "Food", emoji: "🍜", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=200&fit=crop&q=80", status: "In Stock", active: true, sold: 145 },
-      { id: "p2", name: "Nasi Goreng", price: 22000, category: "Food", emoji: "🍛", image: "https://images.unsplash.com/photo-1626804475315-9644b37a2fe4?w=200&fit=crop&q=80", status: "In Stock", active: true, sold: 98 },
-      { id: "p3", name: "Kentang Goreng", price: 18000, category: "Snacks", emoji: "🍟", image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=200&fit=crop&q=80", status: "In Stock", active: true, sold: 120 },
-      { id: "p4", name: "Kopi Hitam", price: 12000, category: "Drinks", emoji: "☕", image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=200&fit=crop&q=80", status: "In Stock", active: true, sold: 210 },
-      { id: "p5", name: "Es Teh Manis", price: 8000, category: "Drinks", emoji: "🍹", image: "https://images.unsplash.com/photo-1497534446932-c925b458314e?w=200&fit=crop&q=80", status: "In Stock", active: true, sold: 64 },
-    ];
-    localStorage.setItem("sebangku_products", JSON.stringify(initial));
-    return initial;
-  });
+        // Fetch F&B Menus
+        const { data: menuData, error: menuError } = await supabase.from('menus').select('*');
+        if (menuError) throw menuError;
+
+        if (menuData) {
+          const mappedMenus = menuData.map(m => ({
+            id: m.id,
+            name: m.name,
+            price: m.price ?? 0,
+            category: m.category,
+            image: m.image ?? "",
+            status: m.status === 'Available' ? 'In Stock' : 'Out of Stock',
+            active: m.status === 'Available',
+            sold: 0 // Local property for UI if needed
+          }));
+          setFbMenu(mappedMenus);
+        }
+      } catch (err) {
+        console.error("Gagal mengambil data dari database:", err);
+      }
+    };
+    
+    fetchDbData();
+  }, []);
 
   // View mode for pages
   const [gamesView, setGamesView] = useState<"grid" | "list">("grid");
