@@ -10,7 +10,9 @@ import {
   Menu, X, TrendingDown, Users, ShoppingBag, UserPlus,
   ChevronRight, Plus, Edit2, Trash2,
   ToggleLeft, ToggleRight, Power, ImageIcon, Coffee, Package, Save,
-  Grid3X3, List, MessageSquare, Star
+  Grid3X3, List, MessageSquare, Star,
+  Eye, EyeOff, AlertCircle,
+  Tag, Table2, MapPin, Hash, Armchair, CheckCircle2, XCircle, Layers
 } from "lucide-react";
 
 import sebangkuLogo from "../../assets/images/logo_sebangku_cafee.png";
@@ -22,421 +24,376 @@ import luckyCapImg from "../../assets/images/Lucky Captain.png";
 import krakenAttImg from "../../assets/images/Kraken Attack.png";
 import sleepyCasImg from "../../assets/images/Sleepy Castle.png";
 import { supabase } from "../../lib/supabase";
+import CategoriesTablesView from "./CategoriesTablesView";
+import ReportsView from "./ReportsView";
 
 const sidebarMenu = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { id: "games", label: "Board Games", Icon: Dices },
   { id: "menu", label: "Menu F&B", Icon: Utensils },
+  { id: "categories-tables", label: "Kategori & Meja", Icon: Layers },
   { id: "reports", label: "Reports", Icon: TrendingUp },
+  { id: "users", label: "Users", Icon: Users },
   { id: "community", label: "Community", Icon: MessageSquare },
   { id: "settings", label: "Settings", Icon: Settings },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REPORTS VIEW COMPONENT
+// (ReportsView is now imported from ReportsView.tsx)
 // ─────────────────────────────────────────────────────────────────────────────
-// -- Revenue trend data keyed by ISO date --
-const ALL_TREND_DATA = [
-  { date:"2026-06-01", day:"1 Jun",  fnb:  95000, rental:  60000 },
-  { date:"2026-06-02", day:"2 Jun",  fnb: 110000, rental:  75000 },
-  { date:"2026-06-03", day:"3 Jun",  fnb: 130000, rental: 100000 },
-  { date:"2026-06-04", day:"4 Jun",  fnb: 120000, rental:  90000 },
-  { date:"2026-06-05", day:"5 Jun",  fnb: 150000, rental: 120000 },
-  { date:"2026-06-06", day:"6 Jun",  fnb: 175000, rental: 145000 },
-  { date:"2026-06-07", day:"7 Jun",  fnb: 160000, rental: 130000 },
-  { date:"2026-06-08", day:"8 Jun",  fnb: 140000, rental: 110000 },
-  { date:"2026-06-09", day:"9 Jun",  fnb: 200000, rental: 160000 },
-  { date:"2026-06-10", day:"10 Jun", fnb: 185000, rental: 170000 },
-  { date:"2026-06-11", day:"11 Jun", fnb: 175000, rental: 180000 },
-  { date:"2026-06-12", day:"12 Jun", fnb: 165000, rental: 190000 },
-  { date:"2026-06-13", day:"13 Jun", fnb: 155000, rental: 200000 },
-  { date:"2026-06-14", day:"14 Jun", fnb: 195000, rental: 185000 },
-  { date:"2026-06-15", day:"15 Jun", fnb: 210000, rental: 190000 },
-  { date:"2026-06-16", day:"16 Jun", fnb: 180000, rental: 220000 },
-];
 
-// -- Transactions keyed by ISO date --
-const ALL_TRANSACTIONS = [
-  { date:"2026-06-16", label:"16 Jun", customer:"Andi S.",    items:"Mie Goreng + Pandemic 2h",  rental:"Rp 70.000",  total:155000, payment:"QRIS" },
-  { date:"2026-06-16", label:"16 Jun", customer:"Budi L.",    items:"Kopi + Es Teh + Catan 1h",  rental:"Rp 35.000",  total: 55000, payment:"Cash" },
-  { date:"2026-06-15", label:"15 Jun", customer:"Citra D.",   items:"Nasi Goreng + Snack",        rental:"",           total: 37000, payment:"Cash" },
-  { date:"2026-06-15", label:"15 Jun", customer:"Dika P.",    items:"Es Kopi + Wingspan 3h",      rental:"Rp 105.000", total:125000, payment:"Transfer" },
-  { date:"2026-06-14", label:"14 Jun", customer:"Eva S.",     items:"Full package",                rental:"Rp 40.000",  total: 90000, payment:"QRIS" },
-  { date:"2026-06-14", label:"14 Jun", customer:"Fajar R.",   items:"Snack + Kopi Hitam",          rental:"",           total: 28000, payment:"Cash" },
-  { date:"2026-06-13", label:"13 Jun", customer:"Gita M.",    items:"Es Kopi Susu + Catan 2h",    rental:"Rp 70.000",  total: 95000, payment:"QRIS" },
-  { date:"2026-06-13", label:"13 Jun", customer:"Hendra K.",  items:"Mie Goreng + Pandemic 3h",   rental:"Rp 105.000", total:180000, payment:"Transfer" },
-  { date:"2026-06-10", label:"10 Jun", customer:"Ika W.",     items:"Nasi Goreng + Wingspan 1h",  rental:"Rp 35.000",  total: 65000, payment:"Cash" },
-  { date:"2026-06-10", label:"10 Jun", customer:"Joko S.",    items:"Kopi Hitam",                  rental:"",           total: 15000, payment:"Cash" },
-  { date:"2026-06-07", label:"7 Jun",  customer:"Kartika P.", items:"Full package",                rental:"Rp 70.000",  total:120000, payment:"QRIS" },
-  { date:"2026-06-07", label:"7 Jun",  customer:"Lutfi A.",   items:"Snack Mix + Ticket 2h",       rental:"Rp 70.000",  total: 98000, payment:"Transfer" },
-];
-
-const topSellingItemsMonth = [
-  { name: "Es Kopi Susu", value: 98 },
-  { name: "Mie Goreng",   value: 85 },
-  { name: "Kopi Hitam",   value: 72 },
-  { name: "Snack Mix",    value: 58 },
-  { name: "Nasi Goreng",  value: 44 },
-];
-const topSellingItemsWeek = [
-  { name: "Es Kopi Susu", value: 24 },
-  { name: "Kopi Hitam",   value: 20 },
-  { name: "Mie Goreng",   value: 18 },
-  { name: "Snack Mix",    value: 12 },
-  { name: "Nasi Goreng",  value:  9 },
-];
-
-const topGamesMonth = [
-  { name: "Pandemic",       value: 34, color: "#1E40AF" },
-  { name: "Catan",          value: 28, color: "#3B82F6" },
-  { name: "Ticket to Ride", value: 22, color: "#93C5FD" },
-  { name: "Wingspan",       value: 19, color: "#BFDBFE" },
-  { name: "Others",         value: 83, color: "#DBEAFE" },
-];
-const topGamesWeek = [
-  { name: "Pandemic",       value:  8, color: "#1E40AF" },
-  { name: "Wingspan",       value:  7, color: "#3B82F6" },
-  { name: "Catan",          value:  5, color: "#93C5FD" },
-  { name: "Ticket to Ride", value:  4, color: "#BFDBFE" },
-  { name: "Others",         value: 14, color: "#DBEAFE" },
-];
-
-const heatmapDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const heatmapHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
-const heatmapData: Record<string, Record<number, number>> = {
-  Mon: { 10:1,11:2,12:3,13:4,14:3,15:4,16:5,17:6,18:7,19:5,20:3,21:1 },
-  Tue: { 10:2,11:3,12:4,13:5,14:4,15:5,16:6,17:7,18:6,19:4,20:2,21:1 },
-  Wed: { 10:1,11:2,12:3,13:4,14:5,15:6,16:7,17:8,18:7,19:6,20:4,21:2 },
-  Thu: { 10:2,11:3,12:2,13:4,14:3,15:5,16:6,17:7,18:8,19:7,20:5,21:3 },
-  Fri: { 10:1,11:2,12:4,13:5,14:6,15:7,16:8,17:9,18:8,19:7,20:6,21:4 },
-  Sat: { 10:3,11:4,12:5,13:6,14:5,15:4,16:5,17:6,18:5,19:4,20:3,21:2 },
-  Sun: { 10:2,11:3,12:4,13:3,14:2,15:3,16:4,17:5,18:4,19:3,20:2,21:1 },
+// ─────────────────────────────────────────────────────────────────────────────
+// USERS VIEW COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+type KasirUser = {
+  id: number;
+  name: string;
+  username: string;
+  password: string;
+  role: string;
+  phone: string;
+  created_at: string;
 };
 
-const PAGE_SIZE = 5;
+type UserForm = {
+  name: string;
+  username: string;
+  password: string;
+  phone: string;
+};
 
-function isoWeekStart(): string {
-  const d = new Date(); d.setDate(d.getDate() - 6);
-  return d.toISOString().slice(0, 10);
-}
-function isoMonthStart(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
-function isoToday(): string { return new Date().toISOString().slice(0, 10); }
-function formatRp(n: number): string { return "Rp " + n.toLocaleString("id-ID"); }
+function UsersView() {
+  const [users, setUsers] = useState<KasirUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editUser, setEditUser] = useState<KasirUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<KasirUser | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [form, setForm] = useState<UserForm>({ name: "", username: "", password: "", phone: "" });
+  const [showPw, setShowPw] = useState(false);
+  const [formError, setFormError] = useState("");
 
-function getHeatColor(val: number): string {
-  const levels = ["", "#DBEAFE", "#BFDBFE", "#93C5FD", "#60A5FA", "#3B82F6", "#2563EB", "#1D4ED8", "#1E40AF", "#1E3A8A"];
-  return levels[Math.min(val, levels.length - 1)] || "#F8FAFC";
-}
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
-function ReportsView() {
-  const [period, setPeriod] = useState<"week" | "month" | "custom">("month");
-  const [startDate, setStartDate] = useState(isoWeekStart());
-  const [endDate, setEndDate] = useState(isoToday());
-  const [txPage, setTxPage] = useState(1);
+  const fetchUsers = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("role", "Kasir")
+      .order("created_at", { ascending: true });
+    if (error) showToast("Gagal memuat data: " + error.message, "error");
+    else setUsers(data || []);
+    setLoading(false);
+  };
 
-  // Filter trend data
-  const revenueTrendData = ALL_TREND_DATA.filter(item => {
-    if (period === "week") {
-      return item.date >= isoWeekStart() && item.date <= isoToday();
-    } else if (period === "month") {
-      return item.date >= isoMonthStart() && item.date <= isoToday();
+  useEffect(() => { fetchUsers(); }, []);
+
+  const openAdd = () => {
+    setEditUser(null);
+    setForm({ name: "", username: "", password: "", phone: "" });
+    setFormError("");
+    setShowPw(false);
+    setShowModal(true);
+  };
+
+  const openEdit = (u: KasirUser) => {
+    setEditUser(u);
+    setForm({ name: u.name, username: u.username, password: u.password, phone: u.phone || "" });
+    setFormError("");
+    setShowPw(false);
+    setShowModal(true);
+  };
+
+  const validateForm = () => {
+    if (!form.name.trim()) return "Nama wajib diisi";
+    if (!form.username.trim()) return "Email/Username wajib diisi";
+    if (!editUser && !form.password.trim()) return "Password wajib diisi";
+    if (form.password && form.password.length < 6) return "Password minimal 6 karakter";
+    return "";
+  };
+
+  const handleSave = async () => {
+    const err = validateForm();
+    if (err) { setFormError(err); return; }
+    setSaving(true);
+    setFormError("");
+
+    if (editUser) {
+      const updates: Partial<UserForm> = { name: form.name, username: form.username, phone: form.phone };
+      if (form.password) updates.password = form.password;
+      const { error } = await supabase.from("users").update(updates).eq("id", editUser.id);
+      if (error) showToast("Gagal update: " + error.message, "error");
+      else { showToast("Akun kasir berhasil diperbarui!"); setShowModal(false); fetchUsers(); }
     } else {
-      return item.date >= startDate && item.date <= endDate;
+      const { error } = await supabase.from("users").insert({
+        name: form.name, username: form.username, password: form.password,
+        phone: form.phone, role: "Kasir",
+      });
+      if (error) showToast("Gagal tambah: " + error.message, "error");
+      else { showToast("Akun kasir berhasil dibuat!"); setShowModal(false); fetchUsers(); }
     }
-  });
+    setSaving(false);
+  };
 
-  // Filter transactions
-  const filteredTransactions = ALL_TRANSACTIONS.filter(tx => {
-    if (period === "week") {
-      return tx.date >= isoWeekStart() && tx.date <= isoToday();
-    } else if (period === "month") {
-      return tx.date >= isoMonthStart() && tx.date <= isoToday();
-    } else {
-      return tx.date >= startDate && tx.date <= endDate;
-    }
-  });
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.from("users").delete().eq("id", deleteTarget.id);
+    if (error) showToast("Gagal hapus: " + error.message, "error");
+    else { showToast("Akun kasir berhasil dihapus!"); fetchUsers(); }
+    setDeleteTarget(null);
+    setDeleting(false);
+  };
 
-  // Top items & games selection
-  const topSellingItems = period === "week" ? topSellingItemsWeek : topSellingItemsMonth;
-  const topGamesData = period === "week" ? topGamesWeek : topGamesMonth;
-
-  // Compute KPIs dynamically
-  const totalFnB = revenueTrendData.reduce((sum, item) => sum + item.fnb, 0);
-  const totalRental = revenueTrendData.reduce((sum, item) => sum + item.rental, 0);
-  const totalRevenue = totalFnB + totalRental;
-  const totalSessionsCount = filteredTransactions.length > 0 ? filteredTransactions.length * 3 : 0;
-
-  const totalPages = Math.ceil(filteredTransactions.length / PAGE_SIZE);
-  const pagedTx = filteredTransactions.slice((txPage - 1) * PAGE_SIZE, txPage * PAGE_SIZE);
-
-  const formatK = (v: number) => v >= 1000000
-    ? `Rp ${(v / 1000000).toFixed(1).replace(".", ",")}jt`
-    : `Rp ${(v / 1000).toFixed(0)}k`;
-
-  const handleExportCSV = useCallback(() => {
-    const header = "Date,Customer,Items,Rental,Total,Payment";
-    const rows = filteredTransactions.map(t =>
-      `${t.date},${t.customer},"${t.items}",${t.rental || "-"},${t.total},${t.payment}`
-    );
-    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "transaksi_sebangku.csv"; a.click();
-    URL.revokeObjectURL(url);
-  }, [filteredTransactions]);
+  const inputCls = "w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all";
+  const labelCls = "block text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-1.5";
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* ── Header ── */}
+    <div className="flex flex-col gap-5">
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+            className={`fixed top-5 right-5 z-[200] flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl text-white text-sm font-semibold ${
+              toast.type === "success" ? "bg-emerald-500" : "bg-red-500"
+            }`}
+          >
+            {toast.type === "success" ? <span>✅</span> : <span>❌</span>}
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-xl font-black text-[#0F172A]">Reports &amp; Analytics</h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          {(["week", "month", "custom"] as const).map(p => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                period === p
-                  ? "bg-[#3B82F6] text-white border-[#3B82F6] shadow"
-                  : "bg-white text-[#64748B] border-slate-200 hover:border-[#3B82F6]"
-              }`}
-            >
-              {p === "week" ? "This Week" : p === "month" ? "This Month" : "Custom"}
-            </button>
-          ))}
-          {period === "custom" && (
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-3 py-1 text-xs">
-              <input
-                type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-                className="focus:outline-none border-none text-[#0F172A] font-medium"
-              />
-              <span className="text-slate-400">to</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
-                className="focus:outline-none border-none text-[#0F172A] font-medium"
-              />
-            </div>
-          )}
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-white border border-slate-200 text-[#0F172A] hover:border-[#3B82F6] transition-all"
-          >
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export CSV
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-white border border-slate-200 text-[#0F172A] hover:border-[#3B82F6] transition-all"
-          >
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            Print
-          </button>
+        <div>
+          <h2 className="text-xl font-black text-[#0F172A]">Manajemen Kasir</h2>
+          <p className="text-xs text-[#64748B] mt-0.5">Kelola akun kasir yang bisa mengakses sistem</p>
         </div>
+        <button
+          onClick={openAdd}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-bold transition-all shadow-md hover:shadow-blue-200 cursor-pointer"
+        >
+          <UserPlus size={16} />
+          Tambah Kasir
+        </button>
       </div>
 
-      {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
-          { label: "TOTAL REVENUE",   value: formatRp(totalRevenue), accent: "#0F172A",  border: "border-t-2 border-t-slate-200" },
-          { label: "F&B REVENUE",     value: formatRp(totalFnB), accent: "#0F172A",  border: "border-t-2 border-t-slate-200" },
-          { label: "RENTAL REVENUE",  value: formatRp(totalRental), accent: "#0F172A",  border: "border-t-2 border-t-slate-200" },
-          { label: "TOTAL SESSIONS",  value: `${totalSessionsCount} sessions`, accent: "#16A34A", border: "border-t-2 border-t-emerald-400" },
-        ].map((card) => (
-          <div key={card.label} className={`bg-white rounded-xl border border-slate-100 ${card.border} p-5 shadow-sm`}>
-            <p className="text-[9px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">{card.label}</p>
-            <h3 className={`text-2xl font-black`} style={{ color: card.accent }}>{card.value}</h3>
+          { label: "Total Kasir", value: users.length, color: "text-blue-600", bg: "bg-blue-50 border-blue-100" },
+          { label: "Aktif", value: users.length, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100" },
+          { label: "Dibuat Bulan Ini", value: users.filter(u => new Date(u.created_at).getMonth() === new Date().getMonth()).length, color: "text-purple-600", bg: "bg-purple-50 border-purple-100" },
+        ].map(s => (
+          <div key={s.label} className={`${s.bg} border rounded-2xl p-4`}>
+            <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-1">{s.label}</p>
+            <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Row: Revenue Trend + Top Selling Items ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Revenue Trend */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 lg:col-span-3">
-          <h3 className="text-sm font-bold text-[#0F172A] mb-4">Revenue Trend</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={revenueTrendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={formatK} tick={{ fontSize: 9, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(v: number) => [`Rp ${v.toLocaleString("id-ID")}`, ""]} contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #E2E8F0" }} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-              <Line type="monotone" dataKey="fnb"    stroke="#1D4ED8" strokeWidth={2} dot={false} name="F&B" />
-              <Line type="monotone" dataKey="rental" stroke="#93C5FD" strokeWidth={2} dot={false} name="Rental" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Top Selling Items */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 lg:col-span-2">
-          <h3 className="text-sm font-bold text-[#0F172A] mb-4">Top Selling Items</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={topSellingItems} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F1F5F9" />
-              <XAxis type="number" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} domain={[0, 100]} />
-              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10, fill: "#64748B" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #E2E8F0" }} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {topSellingItems.map((_item: { name: string; value: number }, i: number) => (
-                  <Cell key={i} fill={`rgba(30,64,175,${1 - i * 0.15})`} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* ── Row: Peak Hours Heatmap + Top Played Games ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Heatmap */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 lg:col-span-3">
-          <h3 className="text-sm font-bold text-[#0F172A] mb-4">Peak Hours Heatmap</h3>
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-[#94A3B8] gap-3">
+            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+              className="w-6 h-6 border-2 border-slate-200 border-t-blue-500 rounded-full" />
+            Memuat data...
+          </div>
+        ) : users.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-[#94A3B8]">
+            <Users size={40} strokeWidth={1} />
+            <p className="text-sm font-semibold">Belum ada akun kasir</p>
+            <button onClick={openAdd} className="text-blue-600 text-xs font-bold hover:underline cursor-pointer">+ Tambah sekarang</button>
+          </div>
+        ) : (
           <div className="overflow-x-auto">
-            <table className="text-[10px]" style={{ borderSpacing: "3px", borderCollapse: "separate" }}>
+            <table className="w-full text-sm">
               <thead>
-                <tr>
-                  <td className="w-8" />
-                  {heatmapHours.map(h => (
-                    <th key={h} className="font-semibold text-[#94A3B8] text-center pb-1" style={{ width: 28 }}>{h}</th>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  {["Nama", "Email / Username", "No. Telepon", "Dibuat", "Aksi"].map(h => (
+                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-black text-[#94A3B8] uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {heatmapDays.map(day => (
-                  <tr key={day}>
-                    <td className="font-semibold text-[#94A3B8] pr-2 py-0.5">{day}</td>
-                    {heatmapHours.map(h => (
-                      <td key={h} title={`${day} ${h}:00 — intensity ${heatmapData[day][h]}`}>
-                        <div
-                          style={{
-                            width: 22, height: 22,
-                            borderRadius: 4,
-                            backgroundColor: getHeatColor(heatmapData[day][h]),
-                          }}
-                        />
-                      </td>
-                    ))}
-                  </tr>
+                {users.map((u, i) => (
+                  <motion.tr
+                    key={u.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black text-sm shrink-0">
+                          {u.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-[#0F172A] text-sm">{u.name}</p>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">Kasir</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-[#64748B] text-xs font-medium">{u.username}</td>
+                    <td className="px-5 py-4 text-[#64748B] text-xs">{u.phone || <span className="text-slate-300">—</span>}</td>
+                    <td className="px-5 py-4 text-[#94A3B8] text-xs whitespace-nowrap">
+                      {new Date(u.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEdit(u)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 text-[#64748B] hover:text-blue-600 border border-slate-200 hover:border-blue-200 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Edit2 size={12} /> Edit
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(u)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-red-50 text-[#64748B] hover:text-red-600 border border-slate-200 hover:border-red-200 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Trash2 size={12} /> Hapus
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
-            {/* Legend */}
-            <div className="flex items-center gap-1 mt-3">
-              <span className="text-[10px] text-[#94A3B8] mr-1">Low</span>
-              {[1,3,5,7,9].map(v => (
-                <div key={v} style={{ width: 16, height: 16, borderRadius: 3, backgroundColor: getHeatColor(v) }} />
-              ))}
-              <span className="text-[10px] text-[#94A3B8] ml-1">High</span>
-            </div>
           </div>
-        </div>
-
-        {/* Top Played Games */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-5 lg:col-span-2">
-          <h3 className="text-sm font-bold text-[#0F172A] mb-4">Top Played Games</h3>
-          <ResponsiveContainer width="100%" height={160}>
-            <PieChart>
-              <Pie
-                data={topGamesData}
-                cx="50%" cy="50%"
-                innerRadius={50} outerRadius={78}
-                dataKey="value"
-                startAngle={90} endAngle={-270}
-              >
-                {topGamesData.map((entry: { name: string; value: number; color: string }, i: number) => (
-                  <Cell key={i} fill={entry.color} stroke="white" strokeWidth={2} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-            </PieChart>
-          </ResponsiveContainer>
-          {/* Legend */}
-          <div className="flex flex-col gap-1.5 mt-2">
-            {topGamesData.map((g: { name: string; value: number; color: string }) => (
-              <div key={g.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: g.color, flexShrink: 0 }} />
-                  <span className="text-[#64748B]">{g.name}</span>
-                </div>
-                <span className="font-bold text-[#0F172A]">{g.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* ── Transaction Log ── */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-[#0F172A]">Transaction Log</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {["Date", "Customer", "Items", "Rental", "Total", "Payment"].map(col => (
-                  <th key={col} className="px-4 py-3 text-left text-[11px] font-bold text-[#3B82F6] uppercase tracking-wide whitespace-nowrap">
-                    {col} ↕
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pagedTx.map((tx, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-[#64748B] text-xs whitespace-nowrap">{tx.date}</td>
-                  <td className="px-4 py-3 font-bold text-[#0F172A] text-xs whitespace-nowrap">{tx.customer}</td>
-                  <td className="px-4 py-3 text-[#64748B] text-xs">{tx.items}</td>
-                  <td className="px-4 py-3 text-[#3B82F6] font-medium text-xs whitespace-nowrap">
-                    {tx.rental || <span className="text-[#CBD5E1]">—</span>}
-                  </td>
-                  <td className="px-4 py-3 font-bold text-[#0F172A] text-xs whitespace-nowrap">{tx.total}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      tx.payment === "QRIS"     ? "bg-blue-50 text-blue-600 border border-blue-200" :
-                      tx.payment === "Transfer" ? "bg-purple-50 text-purple-600 border border-purple-200" :
-                                                  "bg-slate-100 text-slate-600 border border-slate-200"
-                    }`}>
-                      {tx.payment}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {/* Pagination */}
-        <div className="flex items-center justify-center gap-1 py-4 border-t border-slate-100">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-            <button
-              key={p}
-              onClick={() => setTxPage(p)}
-              className={`w-7 h-7 rounded-md text-xs font-bold transition-all ${
-                p === txPage
-                  ? "bg-[#3B82F6] text-white shadow"
-                  : "bg-white text-[#64748B] border border-slate-200 hover:border-[#3B82F6]"
-              }`}
+      {/* Add/Edit Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100]"
+              onClick={() => setShowModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 20 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="fixed inset-0 z-[101] flex items-center justify-center p-4"
             >
-              {p}
-            </button>
-          ))}
-          {totalPages > 4 && (
-            <>
-              <span className="text-[#94A3B8] text-xs">...</span>
-              <button className="w-7 h-7 rounded-md text-xs font-bold bg-white text-[#64748B] border border-slate-200">
-                12
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+                {/* Modal Header */}
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-600">
+                  <div>
+                    <h3 className="text-white font-black text-base">{editUser ? "Edit Akun Kasir" : "Tambah Akun Kasir"}</h3>
+                    <p className="text-blue-100 text-xs mt-0.5">{editUser ? `Mengedit: ${editUser.name}` : "Buat akun kasir baru"}</p>
+                  </div>
+                  <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className={labelCls}>Nama Lengkap</label>
+                    <input className={inputCls} placeholder="contoh: Kasir Utama" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Email / Username</label>
+                    <input className={inputCls} placeholder="kasir@sebangku.id" type="email" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>{editUser ? "Password Baru (kosongkan jika tidak diubah)" : "Password"}</label>
+                    <div className="relative">
+                      <input
+                        className={inputCls + " pr-10"}
+                        placeholder={editUser ? "Kosongkan jika tidak diubah" : "Minimal 6 karakter"}
+                        type={showPw ? "text" : "password"}
+                        value={form.password}
+                        onChange={e => setForm({ ...form, password: e.target.value })}
+                      />
+                      <button type="button" onClick={() => setShowPw(!showPw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
+                        {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>No. Telepon (opsional)</label>
+                    <input className={inputCls} placeholder="08xxxxxxxxxx" type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                  </div>
+                  {formError && (
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-600 text-xs font-medium">
+                      <AlertCircle size={14} /> {formError}
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="px-6 pb-6 flex gap-3">
+                  <button onClick={() => setShowModal(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[#64748B] text-sm font-bold hover:bg-slate-50 transition-colors cursor-pointer">
+                    Batal
+                  </button>
+                  <button onClick={handleSave} disabled={saving}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60">
+                    {saving ? (
+                      <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />Menyimpan...</>
+                    ) : (
+                      <><Save size={15} />{editUser ? "Simpan Perubahan" : "Buat Akun"}</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirm Modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100]" onClick={() => setDeleteTarget(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 20 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+            >
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center">
+                <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                  <Trash2 size={24} className="text-red-500" />
+                </div>
+                <h3 className="text-lg font-black text-[#0F172A] mb-1">Hapus Akun Kasir?</h3>
+                <p className="text-sm text-[#64748B] mb-5">Akun <strong>{deleteTarget.name}</strong> akan dihapus permanen dan tidak bisa dikembalikan.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setDeleteTarget(null)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[#64748B] text-sm font-bold hover:bg-slate-50 transition-colors cursor-pointer">
+                    Batal
+                  </button>
+                  <button onClick={handleDelete} disabled={deleting}
+                    className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60">
+                    {deleting ? "Menghapus..." : "Ya, Hapus"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1239,6 +1196,11 @@ export default function OwnerPage() {
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
   const [editId, setEditId] = useState<any>(null);
 
+  // Loading/guard states to prevent double-submit
+  const [isSavingForm, setIsSavingForm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<any>(null);
+
   // Form Fields
   const [fieldName, setFieldName] = useState("");
   const [fieldCategory, setFieldCategory] = useState("");
@@ -1322,189 +1284,170 @@ export default function OwnerPage() {
     setShowFormModal(true);
   };
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  // ── Helper: re-fetch DB data after mutations ──
+  const refreshDbData = async () => {
+    try {
+      const { data: bgData } = await supabase.from('boardgames').select('*');
+      if (bgData) {
+        const mappedGames = bgData.map((g: any) => ({
+          id: g.id, name: g.name || g.title, category: g.category || g.genre,
+          stock: g.stock ?? 1, rented: g.rented ?? 0, price: g.price ?? 0,
+          status: g.status, active: g.active ?? (g.status === 'Available'),
+          image: g.image ?? '', emoji: g.emoji ?? '🎲',
+          minPlayers: g.min_players ?? 2, maxPlayers: g.max_players ?? 6
+        }));
+        setBoardGames(mappedGames);
+        setRentGames(mappedGames.map((g: any) => ({ id: `g_${g.id}`, name: g.name, price: g.price, category: g.category, emoji: g.emoji, image: g.image, status: g.status, active: g.active })));
+      }
+      const { data: menuData } = await supabase.from('menus').select('*');
+      if (menuData) {
+        setFbMenu(menuData.map((m: any) => ({
+          id: m.id, name: m.name, price: m.price ?? 0, category: m.category,
+          image: m.image ?? '', status: m.status === 'Available' ? 'In Stock' : 'Out of Stock',
+          active: m.status === 'Available', sold: 0, emoji: m.emoji ?? '🍛'
+        })));
+      }
+    } catch (err) { console.error('Refresh DB error:', err); }
+  };
+
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!fieldName.trim()) return;
+    // Guard: prevent double-submit
+    if (isSavingForm) return;
+    setIsSavingForm(true);
 
-
-    if (formType === "game") {
-      let updatedGames = [];
-      let updatedRentGames = [...rentGames];
-      
-      if (formMode === "add") {
-        const newId = "bg_" + Date.now();
-        const newGame = {
-          id: newId,
-          name: fieldName,
-          category: fieldCategory,
-          stock: fieldStock,
-          rented: 0,
-          price: fieldPrice,
-          status: fieldStatus,
-          active: fieldStatus === "Available",
-          image: fieldImageUrl,
-          emoji: fieldEmoji,
-          minPlayers: fieldMinPlayers,
-          maxPlayers: fieldMaxPlayers
-        };
-        updatedGames = [...boardGames, newGame];
-        
-        // Also add to rentGames for POS
-        const newRentGame = {
-          id: "g_" + Date.now(),
-          name: fieldName,
-          price: fieldPrice,
-          category: fieldCategory,
-          emoji: fieldEmoji,
-          image: fieldImageUrl,
-          status: fieldStatus,
-          active: fieldStatus === "Available"
-        };
-        updatedRentGames.push(newRentGame);
+    try {
+      if (formType === "game") {
+        if (formMode === "add") {
+          const { error } = await supabase.from('boardgames').insert({
+            name: fieldName, title: fieldName, category: fieldCategory, genre: fieldCategory,
+            stock: fieldStock, rented: 0, price: fieldPrice,
+            status: fieldStatus, active: fieldStatus === 'Available',
+            image: fieldImageUrl, emoji: fieldEmoji,
+            min_players: fieldMinPlayers, max_players: fieldMaxPlayers
+          });
+          if (error) { alert('Gagal tambah game: ' + error.message); return; }
+        } else {
+          const { error } = await supabase.from('boardgames').update({
+            name: fieldName, title: fieldName, category: fieldCategory, genre: fieldCategory,
+            stock: fieldStock, price: fieldPrice, status: fieldStatus,
+            active: fieldStatus === 'Available', image: fieldImageUrl,
+            emoji: fieldEmoji, min_players: fieldMinPlayers, max_players: fieldMaxPlayers
+          }).eq('id', editId);
+          if (error) { alert('Gagal update game: ' + error.message); return; }
+        }
       } else {
-        updatedGames = boardGames.map(g => {
-          if (g.id === editId) {
-            return {
-              ...g,
-              name: fieldName,
-              category: fieldCategory,
-              stock: fieldStock,
-              price: fieldPrice,
-              status: fieldStatus,
-              active: fieldStatus === "Available",
-              image: fieldImageUrl,
-              emoji: fieldEmoji,
-              minPlayers: fieldMinPlayers,
-              maxPlayers: fieldMaxPlayers
-            };
-          }
-          return g;
-        });
-
-        // Also update in rentGames for POS
-        updatedRentGames = rentGames.map(rg => {
-          const matchedGame = boardGames.find(g => g.id === editId);
-          if (matchedGame && rg.name.toLowerCase() === matchedGame.name.toLowerCase()) {
-            return {
-              ...rg,
-              name: fieldName,
-              price: fieldPrice,
-              category: fieldCategory,
-              emoji: fieldEmoji,
-              image: fieldImageUrl,
-              status: fieldStatus,
-              active: fieldStatus === "Available"
-            };
-          }
-          return rg;
-        });
-      }
-      
-      setBoardGames(updatedGames);
-      setRentGames(updatedRentGames);
-      localStorage.setItem("sebangku_board_games", JSON.stringify(updatedGames));
-      localStorage.setItem("sebangku_rent_games", JSON.stringify(updatedRentGames));
-    } else {
-      let updatedProducts = [];
-      if (formMode === "add") {
-        const newId = "p_" + Date.now();
-        const newProduct = {
-          id: newId,
-          name: fieldName,
-          category: fieldCategory,
-          price: fieldPrice,
-          status: fieldStatus,
-          active: fieldStatus === "In Stock",
-          sold: 0,
-          emoji: fieldEmoji,
-          image: fieldImageUrl
-        };
-        updatedProducts = [...fbMenu, newProduct];
-      } else {
-        updatedProducts = fbMenu.map(item => {
-          if (item.id === editId) {
-            return {
-              ...item,
-              name: fieldName,
-              category: fieldCategory,
-              price: fieldPrice,
-              status: fieldStatus,
-              active: fieldStatus === "In Stock",
-              emoji: fieldEmoji,
-              image: fieldImageUrl
-            };
-          }
-          return item;
-        });
+        const dbStatus = fieldStatus === 'In Stock' ? 'Available' : 'Unavailable';
+        if (formMode === "add") {
+          const { error } = await supabase.from('menus').insert({
+            name: fieldName, category: fieldCategory, price: fieldPrice, status: dbStatus
+          });
+          if (error) { alert('Gagal tambah menu: ' + error.message); return; }
+        } else {
+          const { error } = await supabase.from('menus').update({
+            name: fieldName, category: fieldCategory, price: fieldPrice, status: dbStatus
+          }).eq('id', editId);
+          if (error) { alert('Gagal update menu: ' + error.message); return; }
+        }
       }
 
-      setFbMenu(updatedProducts);
-      localStorage.setItem("sebangku_products", JSON.stringify(updatedProducts));
+      setShowFormModal(false);
+      await refreshDbData();
+    } finally {
+      setIsSavingForm(false);
     }
-
-    // Trigger storage event for same tab synchronization
-    window.dispatchEvent(new Event("storage"));
-    setShowFormModal(false);
   };
 
   const confirmDelete = (type: "game" | "fb", id: string) => {
     setDeleteConfirm({ type, id });
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (!deleteConfirm) return;
+    // Guard: prevent double-delete
+    if (isDeleting) return;
+    setIsDeleting(true);
+
+    // Optimistic UI: remove from local state immediately
     if (deleteConfirm.type === "game") {
-      const updatedGames = boardGames.filter(g => g.id !== deleteConfirm.id);
-      const targetGameName = boardGames.find(g => g.id === deleteConfirm.id)?.name;
-      const updatedRentGames = rentGames.filter(rg => rg.name.toLowerCase() !== targetGameName?.toLowerCase());
-      setBoardGames(updatedGames);
-      setRentGames(updatedRentGames);
-      localStorage.setItem("sebangku_board_games", JSON.stringify(updatedGames));
-      localStorage.setItem("sebangku_rent_games", JSON.stringify(updatedRentGames));
+      setBoardGames(prev => prev.filter(g => String(g.id) !== String(deleteConfirm.id)));
     } else {
-      const updatedProducts = fbMenu.filter(item => item.id !== deleteConfirm.id);
-      setFbMenu(updatedProducts);
-      localStorage.setItem("sebangku_products", JSON.stringify(updatedProducts));
+      setFbMenu(prev => prev.filter((m: any) => String(m.id) !== String(deleteConfirm.id)));
     }
-    window.dispatchEvent(new Event("storage"));
     setDeleteConfirm(null);
+
+    try {
+      if (deleteConfirm.type === "game") {
+        const { error } = await supabase.from('boardgames').delete().eq('id', deleteConfirm.id);
+        if (error) { alert('Gagal hapus game: ' + error.message); await refreshDbData(); }
+      } else {
+        const { error } = await supabase.from('menus').delete().eq('id', deleteConfirm.id);
+        if (error) { alert('Gagal hapus menu: ' + error.message); await refreshDbData(); }
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
-  const handleToggleStatusGame = (id: any) => {
-    const updatedGames = boardGames.map(g => {
-      if (g.id === id) {
-        const newStatus = g.status === "Available" ? "Maintenance" : "Available";
-        return { ...g, status: newStatus, active: newStatus === "Available" };
+  const handleToggleStatusGame = async (id: any) => {
+    // Guard: prevent rapid toggle on same item
+    if (togglingId === id) return;
+    const game = boardGames.find(g => g.id === id);
+    if (!game) return;
+    const newStatus = game.status === 'Available' ? 'Maintenance' : 'Available';
+
+    // Optimistic update: update UI immediately, no lag
+    setTogglingId(id);
+    setBoardGames(prev => prev.map(g =>
+      g.id === id ? { ...g, status: newStatus, active: newStatus === 'Available' } : g
+    ));
+
+    try {
+      const { error } = await supabase.from('boardgames')
+        .update({ status: newStatus, active: newStatus === 'Available' })
+        .eq('id', id);
+      if (error) {
+        // Rollback on error
+        setBoardGames(prev => prev.map(g =>
+          g.id === id ? { ...g, status: game.status, active: game.active } : g
+        ));
+        alert('Gagal ubah status: ' + error.message);
       }
-      return g;
-    });
-    const targetGameName = boardGames.find(g => g.id === id)?.name;
-    const updatedRentGames = rentGames.map(rg => {
-      if (rg.name.toLowerCase() === targetGameName?.toLowerCase()) {
-        const newStatus = rg.status === "Available" ? "Maintenance" : "Available";
-        return { ...rg, status: newStatus, active: newStatus === "Available" };
-      }
-      return rg;
-    });
-    setBoardGames(updatedGames);
-    setRentGames(updatedRentGames);
-    localStorage.setItem("sebangku_board_games", JSON.stringify(updatedGames));
-    localStorage.setItem("sebangku_rent_games", JSON.stringify(updatedRentGames));
-    window.dispatchEvent(new Event("storage"));
+    } finally {
+      setTogglingId(null);
+    }
   };
 
-  const handleToggleStatusFb = (id: any) => {
-    const updatedProducts = fbMenu.map(item => {
-      if (item.id === id) {
-        const newStatus = item.status === "In Stock" ? "Out of Stock" : "In Stock";
-        return { ...item, status: newStatus, active: newStatus === "In Stock" };
+  const handleToggleStatusFb = async (id: any) => {
+    // Guard: prevent rapid toggle on same item
+    if (togglingId === id) return;
+    const item = fbMenu.find((m: any) => m.id === id);
+    if (!item) return;
+    const newUiStatus = item.status === 'In Stock' ? 'Out of Stock' : 'In Stock';
+    const newDbStatus = newUiStatus === 'In Stock' ? 'Available' : 'Unavailable';
+
+    // Optimistic update: update UI immediately, no lag
+    setTogglingId(id);
+    setFbMenu(prev => prev.map((m: any) =>
+      m.id === id ? { ...m, status: newUiStatus, active: newUiStatus === 'In Stock' } : m
+    ));
+
+    try {
+      const { error } = await supabase.from('menus')
+        .update({ status: newDbStatus })
+        .eq('id', id);
+      if (error) {
+        // Rollback on error
+        setFbMenu(prev => prev.map((m: any) =>
+          m.id === id ? { ...m, status: item.status, active: item.active } : m
+        ));
+        alert('Gagal ubah status: ' + error.message);
       }
-      return item;
-    });
-    setFbMenu(updatedProducts);
-    localStorage.setItem("sebangku_products", JSON.stringify(updatedProducts));
-    window.dispatchEvent(new Event("storage"));
+    } finally {
+      setTogglingId(null);
+    }
   };
 
 
@@ -2073,15 +2016,23 @@ export default function OwnerPage() {
                               {/* Toggle Active */}
                               <button
                                 onClick={() => handleToggleStatusGame(game.id)}
-                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                                  game.active
-                                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                disabled={togglingId === game.id}
+                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                  togglingId === game.id
+                                    ? "bg-slate-100 text-slate-400 cursor-wait"
+                                    : game.active
+                                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                                    : "bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer"
                                 }`}
                                 title={game.active ? "Nonaktifkan" : "Aktifkan"}
                               >
-                                <Power size={11} />
-                                {game.active ? "Aktif" : "Nonaktif"}
+                                {togglingId === game.id ? (
+                                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.7, ease: "linear" }}
+                                    className="w-2.5 h-2.5 border-2 border-slate-300 border-t-slate-500 rounded-full" />
+                                ) : (
+                                  <Power size={11} />
+                                )}
+                                {togglingId === game.id ? "Loading..." : game.active ? "Aktif" : "Nonaktif"}
                               </button>
                               <button
                                 onClick={() => triggerEditGame(game)}
@@ -2155,14 +2106,20 @@ export default function OwnerPage() {
                               <td className="px-5 py-3.5">
                                 <button
                                   onClick={() => handleToggleStatusGame(game.id)}
-                                  className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                                    game.active
-                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                      : "bg-slate-100 text-slate-500 border border-slate-200"
+                                  disabled={togglingId === game.id}
+                                  className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all ${
+                                    togglingId === game.id
+                                      ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-wait"
+                                      : game.active
+                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-pointer"
+                                      : "bg-slate-100 text-slate-500 border border-slate-200 cursor-pointer"
                                   }`}
                                 >
-                                  {game.active ? <ToggleRight size={12} /> : <ToggleLeft size={12} />}
-                                  {game.active ? "Aktif" : "Nonaktif"}
+                                  {togglingId === game.id ? (
+                                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.7, ease: "linear" }}
+                                      className="w-2.5 h-2.5 border-2 border-slate-300 border-t-slate-500 rounded-full" />
+                                  ) : game.active ? <ToggleRight size={12} /> : <ToggleLeft size={12} />}
+                                  {togglingId === game.id ? "Loading..." : game.active ? "Aktif" : "Nonaktif"}
                                 </button>
                               </td>
                               <td className="px-5 py-3.5 text-right">
@@ -2289,14 +2246,22 @@ export default function OwnerPage() {
                             <div className="flex items-center gap-1.5 pt-2 border-t border-slate-50">
                               <button
                                 onClick={() => handleToggleStatusFb(item.id)}
-                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                                  item.active
-                                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                    : "bg-red-50 text-red-600 hover:bg-red-100"
+                                disabled={togglingId === item.id}
+                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                  togglingId === item.id
+                                    ? "bg-slate-100 text-slate-400 cursor-wait"
+                                    : item.active
+                                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                                    : "bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
                                 }`}
                               >
-                                <Power size={11} />
-                                {item.active ? "Tersedia" : "Habis"}
+                                {togglingId === item.id ? (
+                                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.7, ease: "linear" }}
+                                    className="w-2.5 h-2.5 border-2 border-slate-300 border-t-slate-500 rounded-full" />
+                                ) : (
+                                  <Power size={11} />
+                                )}
+                                {togglingId === item.id ? "Loading..." : item.active ? "Tersedia" : "Habis"}
                               </button>
                               <button
                                 onClick={() => triggerEditFb(item)}
@@ -2365,14 +2330,20 @@ export default function OwnerPage() {
                               <td className="px-5 py-3.5">
                                 <button
                                   onClick={() => handleToggleStatusFb(item.id)}
-                                  className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                                    item.active
-                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                      : "bg-red-50 text-red-600 border border-red-200"
+                                  disabled={togglingId === item.id}
+                                  className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all ${
+                                    togglingId === item.id
+                                      ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-wait"
+                                      : item.active
+                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-pointer"
+                                      : "bg-red-50 text-red-600 border border-red-200 cursor-pointer"
                                   }`}
                                 >
-                                  {item.active ? <ToggleRight size={12} /> : <ToggleLeft size={12} />}
-                                  {item.active ? "Tersedia" : "Habis"}
+                                  {togglingId === item.id ? (
+                                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.7, ease: "linear" }}
+                                      className="w-2.5 h-2.5 border-2 border-slate-300 border-t-slate-500 rounded-full" />
+                                  ) : item.active ? <ToggleRight size={12} /> : <ToggleLeft size={12} />}
+                                  {togglingId === item.id ? "Loading..." : item.active ? "Tersedia" : "Habis"}
                                 </button>
                               </td>
                               <td className="px-5 py-3.5 text-right">
@@ -2394,6 +2365,11 @@ export default function OwnerPage() {
                 </div>
               )}
 
+              {/* ───────────────── 3.5 CATEGORIES & TABLES VIEW ───────────────── */}
+              {activeTab === "categories-tables" && (
+                <CategoriesTablesView />
+              )}
+
               {/* ───────────────── 4. REPORTS VIEW ───────────────── */}
               {activeTab === "reports" && (
                 <ReportsView />
@@ -2404,7 +2380,12 @@ export default function OwnerPage() {
                 <CommunityView />
               )}
 
-              {/* ───────────────── 6. SETTINGS VIEW ───────────────── */}
+              {/* ───────────────── 6. USERS VIEW ───────────────── */}
+              {activeTab === "users" && (
+                <UsersView />
+              )}
+
+              {/* ───────────────── 7. SETTINGS VIEW ───────────────── */}
               {activeTab === "settings" && (
                 <SettingsView />
               )}
@@ -2667,14 +2648,25 @@ export default function OwnerPage() {
                     </button>
                     <button
                       type="submit"
-                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md ${
+                      disabled={isSavingForm}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-60 disabled:cursor-not-allowed ${
                         formType === "game"
                           ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
                           : "bg-orange-500 hover:bg-orange-600 shadow-orange-100"
-                      }`}
+                      } ${!isSavingForm ? 'cursor-pointer' : ''}`}
                     >
-                      <Save size={13} />
-                      {formMode === "add" ? "Simpan & Tambah" : "Simpan Perubahan"}
+                      {isSavingForm ? (
+                        <>
+                          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                            className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={13} />
+                          {formMode === "add" ? "Simpan & Tambah" : "Simpan Perubahan"}
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -2718,9 +2710,10 @@ export default function OwnerPage() {
                   </button>
                   <button
                     onClick={executeDelete}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-red-500 hover:bg-red-600 transition-colors cursor-pointer"
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-red-500 hover:bg-red-600 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Ya, Hapus
+                    {isDeleting ? "Menghapus..." : "Ya, Hapus"}
                   </button>
                 </div>
               </div>
