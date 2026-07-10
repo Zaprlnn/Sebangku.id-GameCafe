@@ -48,7 +48,7 @@ export default function ReportsView() {
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
+      const { data } = await supabase.from('dashboard_transactions').select('*').order('created_at', { ascending: false });
       if (data) {
         setAllTransactions(data);
       }
