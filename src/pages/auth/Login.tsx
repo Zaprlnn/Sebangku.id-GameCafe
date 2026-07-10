@@ -112,7 +112,7 @@ export default function LoginPage() {
 
   const validate = () => {
     const newErrors: typeof errors = {};
-    if (!email) newErrors.email = "Username/Email wajib diisi";
+    if (!email) newErrors.email = "Email atau Username wajib diisi";
     if (!password) newErrors.password = "Password wajib diisi";
     else if (password.length < 6) newErrors.password = "Password minimal 6 karakter";
     return newErrors;
@@ -125,9 +125,10 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // KEMBALI KE BAWAAN: Menggunakan modul autentikasi resmi Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: email,
+        password: password,
       });
       
       if (error) {
@@ -139,7 +140,9 @@ export default function LoginPage() {
       setIsLoading(false);
       setLoginSuccess(true);
       
-      const role = data.user?.user_metadata?.role || "Customer";
+      // Mengambil metadata role. Secara default jika kosong di-set sebagai "Kasir" 
+      // (Bisa disesuaikan atau membaca fallback data dari tabel public.users jika perlu)
+      const role = data.user?.user_metadata?.role || "Kasir";
 
       const userData = {
         id: data.user.id,
@@ -148,11 +151,12 @@ export default function LoginPage() {
         role: role,
       };
 
-      // Save authenticated user data
+      // Simpan enkapsulasi token ke local storage aplikasi
       localStorage.setItem("sebangku_user", JSON.stringify(userData));
 
       await new Promise((r) => setTimeout(r, 900));
 
+      // Pengalihan Rute Terproteksi
       if (role === "Kasir") {
         navigate(tableId ? `/app/kasir?table=${tableId}` : "/app/kasir");
       } else if (role === "Owner") {
@@ -177,7 +181,6 @@ export default function LoginPage() {
     if (e.key === "Enter") handleLogin();
   };
 
-  // Detect if owner is typing
   const isOwnerEmail = email.toLowerCase().includes("owner");
 
   return (
@@ -292,7 +295,7 @@ export default function LoginPage() {
               Welcome Back 👋
             </h1>
             <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[#64748B] text-sm">
-              Masuk dengan akun email Anda
+              Masuk dengan kredensial Supabase Auth Anda
             </p>
           </motion.div>
 
@@ -341,7 +344,7 @@ export default function LoginPage() {
           {/* Form */}
           <div className="flex flex-col gap-4">
             <InputField
-              label="Email"
+              label="Email Address"
               type="email"
               value={email}
               onChange={setEmail}
@@ -414,7 +417,6 @@ export default function LoginPage() {
                 boxShadow: isLoading ? "none" : "0 4px 16px rgba(59,130,246,0.3)",
               }}
             >
-              {/* Shimmer on loading */}
               {isLoading && (
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
@@ -434,11 +436,11 @@ export default function LoginPage() {
               ) : loginSuccess ? (
                 <>
                   <CheckCircle2 size={18} />
-                  Berhasil!
+                  <span>Berhasil!</span>
                 </>
               ) : (
                 <>
-                  Sign In
+                  <span>Sign In</span>
                   <motion.span animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
                     <ArrowRight size={18} />
                   </motion.span>
@@ -490,25 +492,6 @@ export default function LoginPage() {
               Daftar Sekarang →
             </Link>
           </motion.p>
-
-          {tableId && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.65 }}
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-              className="text-center text-xs text-[#94A3B8] mt-2"
-            >
-              Atau{" "}
-              <button
-                onClick={() => navigate(`/app?table=${tableId}&mode=guest`)}
-                className="text-[#94A3B8] underline cursor-pointer hover:text-[#64748B] transition-colors"
-              >
-                lanjut sebagai tamu
-              </button>{" "}
-              tanpa akun
-            </motion.p>
-          )}
         </div>
 
         {/* ── Right: Branding Panel ─────────────────────────────── */}
