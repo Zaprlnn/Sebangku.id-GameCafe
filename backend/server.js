@@ -13,7 +13,6 @@ async function initDB() {
   try {
     // Buat tabel users jika belum ada
     await db.execute(`
-      DROP TABLE IF EXISTS users;
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
@@ -116,15 +115,27 @@ app.post('/api/register', async (req, res) => {
 
     // Simpan user baru
     const result = await db.execute({
-      sql: 'INSERT INTO users (name, username, password, role, phone) VALUES (?, ?, ?, ?, ?) RETURNING id',
+      sql: 'INSERT INTO users (name, username, password, role, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id',
       args: [name, email, password, 'Customer', phone || null],
+    });
+
+    const newUserId = Number(result.lastInsertRowid);
+    const firstName = name.split(' ')[0];
+    const lastName = name.split(' ').slice(1).join(' ');
+
+    // Buat profil default
+    await db.execute({
+      sql: `INSERT INTO customer_profiles 
+            (user_id, nama_depan, nama_belakang, status, kunjungan, waktu_bermain, win_rate, level)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      args: [newUserId, firstName, lastName, 'Active · Regular', 1, 0, 0, 1]
     });
 
     res.status(201).json({
       success: true,
       message: 'Registrasi berhasil!',
       user: {
-        id: Number(result.lastInsertRowid),
+        id: newUserId,
         name,
         username: email,
         role: 'Customer',
@@ -146,6 +157,148 @@ app.get('/api/users', async (req, res) => {
     res.json({ success: true, users: result.rows });
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil data user' });
+  }
+});
+// ─── API: Customer Profile ────────────────────────────────────────────────────────
+app.get('/api/customer/profile/:id', async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const result = await db.execute({
+      sql: `SELECT * FROM customer_profiles WHERE user_id = $1`,
+      args: [userId]
+    });
+    
+    if (result.rows.length === 0) {
+      // Auto-create for new Supabase Auth users
+      await db.execute({
+        sql: `INSERT INTO customer_profiles 
+              (user_id, status, kunjungan, waktu_bermain, win_rate, level)
+              VALUES ($1, $2, $3, $4, $5, $6)`,
+        args: [userId, 'Active · Regular', 1, 0, 0, 1]
+      });
+      
+      const newResult = await db.execute({
+        sql: `SELECT * FROM customer_profiles WHERE user_id = $1`,
+        args: [userId]
+      });
+      return res.json({ success: true, profile: newResult.rows[0] });
+    }
+    
+    res.json({ success: true, profile: result.rows[0] });
+  } catch (error) {
+    console.error('Fetch profile error:', error.message);
+    res.status(500).json({ message: 'Gagal mengambil data profil' });
+  }
+});
+
+app.put('/api/customer/profile/:id', async (req, res) => {
+  const userId = req.params.id;
+  const { nama_depan, nama_belakang, tanggal_lahir } = req.body;
+  
+  try {
+    // Check if profile exists
+    const check = await db.execute({
+      sql: 'SELECT user_id FROM customer_profiles WHERE user_id = $1',
+      args: [userId]
+    });
+    
+    if (check.rows.length === 0) {
+      // Insert
+      await db.execute({
+        sql: `INSERT INTO customer_profiles (user_id, nama_depan, nama_belakang, tanggal_lahir, kunjungan, level)
+              VALUES ($1, $2, $3, $4, 1, 1)`,
+        args: [userId, nama_depan, nama_belakang, tanggal_lahir]
+      });
+    } else {
+      // Update
+      await db.execute({
+        sql: `UPDATE customer_profiles 
+              SET nama_depan = $1, nama_belakang = $2, tanggal_lahir = $3, updated_at = NOW()
+              WHERE user_id = $4`,
+        args: [nama_depan, nama_belakang, tanggal_lahir, userId]
+      });
+    }
+    
+    res.json({ success: true, message: 'Profil berhasil diperbarui' });
+  } catch (error) {
+    console.error('Update profile error:', error.message);
+    res.status(500).json({ message: 'Gagal memperbarui profil' });
+  }
+});
+
+// ─── API: Customer History & Checkout ──────────────────────────────────────────
+app.get('/api/customer/history/:id', async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const visits = await db.execute({ sql: 'SELECT * FROM customer_visits WHERE user_id = $1 ORDER BY id DESC', args: [userId] });
+    const games = await db.execute({ sql: 'SELECT * FROM customer_game_history WHERE user_id = $1 ORDER BY id DESC', args: [userId] });
+    const transactions = await db.execute({ sql: 'SELECT * FROM customer_transactions WHERE user_id = $1 ORDER BY id DESC', args: [userId] });
+    
+    res.json({
+      success: true,
+      visits: visits.rows,
+      games: games.rows,
+      transactions: transactions.rows
+    });
+  } catch (error) {
+    console.error('Fetch history error:', error.message);
+    res.status(500).json({ message: 'Gagal mengambil riwayat' });
+  }
+});
+
+app.post('/api/customer/checkout', async (req, res) => {
+  const { userId, table, items, amount, method, details, gamesList, friendsCount } = req.body;
+  const date = new Date();
+  const dateStr = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  const timeStr = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+  const fullDateTime = `${dateStr} • ${timeStr}`;
+
+  // Parse details
+  const itemsStr = items || details.map((d) => d.name).join(' • ');
+
+  try {
+    // 1. Save Transaction
+    await db.execute({
+      sql: `INSERT INTO customer_transactions (user_id, date, items, amount, method, details) VALUES ($1, $2, $3, $4, $5, $6)`,
+      args: [userId, fullDateTime, itemsStr, amount, method, JSON.stringify(details)]
+    });
+
+    // 2. Save Visit
+    // We get the first game name as representative for the visit, if any
+    const mainGame = gamesList && gamesList.length > 0 ? gamesList[0].name : '-';
+    const mainGameImg = gamesList && gamesList.length > 0 ? gamesList[0].image : '';
+    await db.execute({
+      sql: `INSERT INTO customer_visits (user_id, date, time, duration, table_name, friends, spending, game_played, game_image)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      args: [userId, dateStr, timeStr, '2h 00m', table || '-', friendsCount || 1, amount, mainGame, mainGameImg]
+    });
+
+    // 3. Save Game History
+    let totalGameTimeAdded = 0;
+    if (gamesList && gamesList.length > 0) {
+      for (const game of gamesList) {
+        await db.execute({
+          sql: `INSERT INTO customer_game_history (user_id, name, rating, date, duration, table_name, players, status, comment, image)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          args: [userId, game.name, 0, dateStr, '2h 00m', table || '-', friendsCount || 1, '-', '', game.image || '']
+        });
+        totalGameTimeAdded += 2; // assume 2 hours per game for simplicity
+      }
+    }
+
+    // 4. Update Customer Profile Stats
+    await db.execute({
+      sql: `UPDATE customer_profiles 
+            SET kunjungan = kunjungan + 1, 
+                waktu_bermain = waktu_bermain + $1 
+            WHERE user_id = $2`,
+      args: [totalGameTimeAdded, userId]
+    });
+
+    res.json({ success: true, message: 'Checkout berhasil direkam' });
+  } catch (error) {
+    console.error('Checkout error:', error.message);
+    res.status(500).json({ message: 'Gagal merekam checkout' });
   }
 });
 

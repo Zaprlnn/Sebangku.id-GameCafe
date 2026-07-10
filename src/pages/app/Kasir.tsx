@@ -5,9 +5,11 @@ import {
   Search, Plus, Minus, CreditCard, Banknote, CheckCircle,
   LogOut, PlusCircle, X, ShoppingBag, LayoutDashboard,
   Users, Settings, Printer, Check, Clock, Dices, User, Tag,
-  Bell, BellRing
+  Bell, BellRing, ChevronRight, Receipt
 } from "lucide-react";
+import { BOARDGAMES_SEED } from "../../data/boardgames_seed";
 import sebangkuLogo from "../../assets/images/logo_sebangku_cafee.png";
+import { supabase } from "../../lib/supabase";
 
 // Import Board Game Images
 import mystKidsImg from "../../assets/images/Mysterium Kids.png";
@@ -87,29 +89,132 @@ export default function KasirPage() {
 
   const [customerOrders, setCustomerOrders] = useState<any[]>([]);
 
-  // Sync state with localStorage changes
+  // Fetch data from Supabase
   useEffect(() => {
-    const handleStorageChange = () => {
-      const savedProducts = localStorage.getItem("sebangku_products");
-      if (savedProducts) setProducts(JSON.parse(savedProducts));
-      const savedRentGames = localStorage.getItem("sebangku_rent_games");
-      if (savedRentGames) setRentGames(JSON.parse(savedRentGames));
-      const savedBoardGames = localStorage.getItem("sebangku_board_games");
-      if (savedBoardGames) setBoardGames(JSON.parse(savedBoardGames));
-      
-      const savedOrders = localStorage.getItem("sebangku_customer_orders");
-      if (savedOrders) setCustomerOrders(JSON.parse(savedOrders));
-    };
-    window.addEventListener("storage", handleStorageChange);
-    // Also sync on mount
-    handleStorageChange();
+    const fetchSupabaseData = async () => {
+      try {
+        // Fetch Menu
+        const { data: menuData } = await supabase.from('menu').select('*');
+        if (menuData && menuData.length > 0) setProducts(menuData);
 
-    // 2-second polling interval
-    const interval = setInterval(handleStorageChange, 2000);
+        // Fetch Rental Pricing
+        const { data: rentData } = await supabase.from('rental_pricing').select('*');
+        if (rentData && rentData.length > 0) setRentGames(rentData);
+
+        // Fetch Incoming Orders
+        const { data: txData, error: txError } = await supabase
+          .from('customer_transactions')
+          .select(`*`)
+          .order('created_at', { ascending: false });
+          
+        if (txError) console.error("Error tx:", txError);
+
+        let profilesMap: Record<string, any> = {};
+        
+        if (txData) {
+          const userIds = [...new Set(txData.map(tx => tx.user_id))].filter(Boolean);
+          if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('customer_profiles')
+              .select('user_id, nama_depan, nama_belakang, phone')
+              .in('user_id', userIds);
+            if (profiles) {
+              profiles.forEach(p => profilesMap[p.user_id] = p);
+            }
+          }
+
+          const mappedOrders = txData.map((tx: any) => {
+            const p = profilesMap[tx.user_id];
+            return {
+              id: tx.id,
+              customerName: p ? `${p.nama_depan || ''} ${p.nama_belakang || ''}`.trim() : "Walk-in",
+              customerPhone: p?.phone || "",
+              items: tx.details?.filter((i: any) => i.id?.startsWith("p")) || [],
+              rentals: tx.details?.filter((i: any) => i.id?.startsWith("g")) || [],
+              totalAmount: tx.amount,
+              paymentMethod: tx.payment_method,
+              status: tx.status || "paid",
+              createdAt: tx.created_at,
+              table: (tx.table_no && tx.table_no.length > 10) ? "A1" : (tx.table_no || "A1")
+            };
+          });
+          setCustomerOrders(mappedOrders);
+        }
+
+        // Fetch Active Sessions
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('customer_game_history')
+          .select(`*`)
+          .in('status', ['PENDING', 'in_progress']) // ACTIVE or PENDING
+          .order('created_at', { ascending: false });
+          
+        if (sessionError) console.error("Error sessions:", sessionError);
+
+        if (sessionData) {
+          const sessionUserIds = [...new Set(sessionData.map(s => s.user_id))].filter(Boolean);
+          if (sessionUserIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('customer_profiles')
+              .select('user_id, nama_depan, nama_belakang, phone')
+              .in('user_id', sessionUserIds);
+            if (profiles) {
+              profiles.forEach(p => profilesMap[p.user_id] = p);
+            }
+          }
+
+          const mappedSessions = sessionData.map((s: any) => {
+            const p = profilesMap[s.user_id];
+            // estimate seconds left from duration if needed, for now hardcoded 2 hrs max
+            let totalSeconds = 7200;
+            if (s.duration) {
+              const hMatch = s.duration.match(/(\d+)\s*Hour/i);
+              if (hMatch) totalSeconds = parseInt(hMatch[1]) * 3600;
+            }
+            const elapsed = Math.floor((Date.now() - new Date(s.created_at).getTime()) / 1000);
+            const secondsLeft = Math.max(0, totalSeconds - elapsed);
+            
+            return {
+              id: s.id,
+              name: p ? `${p.nama_depan || ''} ${p.nama_belakang || ''}`.trim() : "Walk-in",
+              phone: p?.phone || "",
+              table: (s.table_no && s.table_no.length > 10) ? "A1" : (s.table_no || "A1"),
+              game: s.game_name,
+              duration: s.duration || "2 Hours",
+              secondsLeft: secondsLeft
+            };
+          });
+          setSessions(mappedSessions);
+        }
+      } catch (err) {
+        console.error("Error fetching Kasir data:", err);
+      }
+    };
+
+    fetchSupabaseData();
+    const interval = setInterval(fetchSupabaseData, 5000);
+    
+    // --- Realtime Subscriptions ---
+    const kasirChannel = supabase
+      .channel('kasir-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customer_transactions' }, (payload) => {
+        // Trigger fetch data immediately on new order
+        fetchSupabaseData();
+        
+        // Optional sound alert (will only play if user has interacted with document)
+        try {
+          const beep = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+          beep.volume = 0.5;
+          beep.play().catch(() => {}); // catch and ignore if blocked by browser policy
+        } catch (e) {}
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customer_game_history' }, (payload) => {
+        fetchSupabaseData();
+      })
+      .subscribe();
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       clearInterval(interval);
+      supabase.removeChannel(kasirChannel);
     };
   }, []);
 
@@ -147,20 +252,7 @@ export default function KasirPage() {
   const [pendingReceipt, setPendingReceipt] = useState<any>(null);
 
   // Active Sessions States
-  const [sessions, setSessions] = useState<any[]>(() => {
-    const saved = localStorage.getItem("sebangku_sessions");
-    return saved ? JSON.parse(saved) : [
-      { id: 1, name: "Andi Saputra", phone: "081234567890", table: "A1", game: "Mysterium Kids", duration: "2 Hours", secondsLeft: 2536 },
-      { id: 2, name: "Citra Dewi", phone: "083456789012", table: "C2", game: "Lucky Captain", duration: "All Day", secondsLeft: 21436 },
-      { id: 3, name: "Dika Pratama", phone: "084567890123", table: "A2", game: "Kraken Attack", duration: "3 Hours", secondsLeft: 7936 },
-      { id: 4, name: "Eva Susanti", phone: "085678901234", table: "D1", game: "Fold it", duration: "2 Hours", secondsLeft: 3676 },
-      { id: 5, name: "Sebangku", phone: "0814124412", table: "B3", game: "Slide Quest", duration: "1 Hour", secondsLeft: 3576 }
-    ];
-  });
-
-  useEffect(() => {
-    localStorage.setItem("sebangku_sessions", JSON.stringify(sessions));
-  }, [sessions]);
+  const [sessions, setSessions] = useState<any[]>([]);
 
   const unreadOrdersCount = useMemo(() => {
     return customerOrders.filter(o => o.status === "paid").length;
@@ -177,6 +269,12 @@ export default function KasirPage() {
   const [newSessionTable, setNewSessionTable] = useState("A1");
   const [newSessionGame, setNewSessionGame] = useState("Mysterium Kids");
   const [newSessionDuration, setNewSessionDuration] = useState("2 Hours");
+
+  // Settings States
+  const [taxEnabled, setTaxEnabled] = useState(true);
+  const [serviceChargeEnabled, setServiceChargeEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [alertEnabled, setAlertEnabled] = useState(true);
 
   // Action Confirmation Modal States
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -247,13 +345,19 @@ export default function KasirPage() {
   }, [sessions, sessionFilter]);
 
   // Session Handlers
-  const handleEndSession = (id: number) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-    setCompletedSessionsCount(prev => prev + 1);
-    setRentalRevenue(prev => prev + 15000);
+  const handleEndSession = async (id: number) => {
+    try {
+      await supabase.from('customer_game_history').update({ status: 'WIN' }).eq('id', id);
+      setSessions(prev => prev.filter(s => s.id !== id));
+      setCompletedSessionsCount(prev => prev + 1);
+      setRentalRevenue(prev => prev + 15000);
+    } catch (err) {
+      console.error("Failed to end session:", err);
+    }
   };
 
-  const handleExtendSession = (id: number, option: "30 min" | "1 Hour" | "2 Hours") => {
+  const handleExtendSession = async (id: number, option: "30 min" | "1 Hour" | "2 Hours") => {
+    // Optimistic update
     setSessions(prev => prev.map(s => {
       if (s.id === id) {
         let addedSeconds = 0;
@@ -261,9 +365,7 @@ export default function KasirPage() {
 
         if (option === "30 min") {
           addedSeconds = 1800;
-          if (s.duration !== "All Day") {
-            newDuration = "Extended";
-          }
+          if (s.duration !== "All Day") newDuration = "Extended";
         } else if (option === "1 Hour") {
           addedSeconds = 3600;
           if (s.duration !== "All Day") {
@@ -277,6 +379,13 @@ export default function KasirPage() {
             newDuration = isNaN(currentHours) ? "2 Hours" : `${currentHours + 2} Hours`;
           }
         }
+        
+        // Update in Supabase
+        supabase.from('customer_game_history')
+          .update({ duration: newDuration })
+          .eq('id', id)
+          .then(); // fire and forget for UI snappiness
+
         return {
           ...s,
           secondsLeft: s.secondsLeft + addedSeconds,
@@ -365,9 +474,16 @@ export default function KasirPage() {
     });
   };
 
-  const cartTotal = useMemo(() => {
+  const cartSubtotal = useMemo(() => {
     return cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   }, [cart]);
+
+  const cartTotal = useMemo(() => {
+    let total = cartSubtotal;
+    if (taxEnabled) total += cartSubtotal * 0.10;
+    if (serviceChargeEnabled) total += cartSubtotal * 0.05;
+    return total;
+  }, [cartSubtotal, taxEnabled, serviceChargeEnabled]);
 
   // Register Customer
   const handleAddCustomer = (e: React.FormEvent) => {
@@ -443,56 +559,37 @@ export default function KasirPage() {
     }
   };
 
-  const handleAcceptOrder = (order: any) => {
-    // 1. Create sessions for rented games
-    if (order.rentals && order.rentals.length > 0) {
-      const newSessionsList = [...sessions];
-      order.rentals.forEach((rental: any) => {
-        let initialSeconds = 7200; // default 2 hours
-        if (rental.duration === "1 Hour") initialSeconds = 3600;
-        else if (rental.duration === "3 Hours") initialSeconds = 10800;
-        else if (rental.duration === "All Day") initialSeconds = 28800; // 8 hours
-
-        const newSession = {
-          id: Date.now() + Math.floor(Math.random() * 1000),
-          name: order.customerName,
-          phone: order.customerPhone,
-          table: order.table || "A1",
-          game: rental.name,
-          duration: rental.duration || "2 Hours",
-          secondsLeft: initialSeconds
-        };
-        newSessionsList.unshift(newSession);
-      });
-      setSessions(newSessionsList);
-    }
-
-    // 2. Update order status to in_progress
-    const savedOrders = localStorage.getItem("sebangku_customer_orders");
-    if (savedOrders) {
-      const list = JSON.parse(savedOrders);
-      const updated = list.map((o: any) => {
-        if (o.id === order.id) {
-          return { ...o, status: "in_progress" };
+  const handleAcceptOrder = async (order: any) => {
+    try {
+      await supabase.from('customer_transactions').update({ status: 'in_progress' }).eq('id', order.id);
+      
+      // Also update game history status to in_progress to start the session if it's a rental
+      if (order.rentals && order.rentals.length > 0) {
+        // Find the user_id from the original data
+        const { data: tx } = await supabase.from('customer_transactions').select('user_id').eq('id', order.id).single();
+        if (tx && tx.user_id) {
+           await supabase.from('customer_game_history')
+             .update({ status: 'in_progress' })
+             .eq('user_id', tx.user_id)
+             .eq('status', 'PENDING');
         }
-        return o;
-      });
-      localStorage.setItem("sebangku_customer_orders", JSON.stringify(updated));
-      setCustomerOrders(updated);
-      window.dispatchEvent(new Event("storage"));
+      }
+
+      // Data will refresh via polling, but we can do an optimistic update
+      setCustomerOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'in_progress' } : o));
+      alert(`Pesanan ${order.id} berhasil diterima!`);
+    } catch (err) {
+      console.error("Error accepting order:", err);
     }
-    alert(`Pesanan ${order.id} berhasil diterima!`);
   };
 
-  const handleCancelOrder = (order: any) => {
+  const handleCancelOrder = async (order: any) => {
     if (!window.confirm(`Yakin ingin membatalkan pesanan ${order.id}?`)) return;
-    const savedOrders = localStorage.getItem("sebangku_customer_orders");
-    if (savedOrders) {
-      const list = JSON.parse(savedOrders);
-      const updated = list.filter((o: any) => o.id !== order.id);
-      localStorage.setItem("sebangku_customer_orders", JSON.stringify(updated));
-      setCustomerOrders(updated);
-      window.dispatchEvent(new Event("storage"));
+    try {
+      await supabase.from('customer_transactions').delete().eq('id', order.id);
+      setCustomerOrders(prev => prev.filter(o => o.id !== order.id));
+    } catch (err) {
+      console.error("Error canceling order:", err);
     }
   };
 
@@ -795,7 +892,7 @@ export default function KasirPage() {
             <div className="p-4 border-b border-[#E2E8F0] shrink-0">
               <div className="flex items-center justify-between">
                 <h2 style={{ fontFamily: "'Poppins', sans-serif" }} className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
-                 Order Summary
+                  Order Summary
                 </h2>
                 {selectedCustomer && (
                   <span className="bg-[#EFF6FF] text-[#3B82F6] text-[10px] font-black px-2 py-0.5 rounded-md">
@@ -890,8 +987,20 @@ export default function KasirPage() {
               {/* Pricing Breakdowns */}
               <div className="flex justify-between items-center text-xs text-[#64748B] mb-1.5">
                 <span>Subtotal</span>
-                <span>{formatRupiah(cartTotal)}</span>
+                <span>{formatRupiah(cartSubtotal)}</span>
               </div>
+              {taxEnabled && (
+                <div className="flex justify-between items-center text-xs text-[#64748B] mb-1.5">
+                  <span>PB1 (10%)</span>
+                  <span>{formatRupiah(cartSubtotal * 0.10)}</span>
+                </div>
+              )}
+              {serviceChargeEnabled && (
+                <div className="flex justify-between items-center text-xs text-[#64748B] mb-1.5">
+                  <span>Service Charge 5%</span>
+                  <span>{formatRupiah(cartSubtotal * 0.05)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-sm font-extrabold text-[#0F172A] mb-4 pt-1.5 border-t border-dashed border-[#E2E8F0]">
                 <span>TOTAL</span>
                 <span className="text-base text-[#3B82F6]">{formatRupiah(cartTotal)}</span>
@@ -925,11 +1034,10 @@ export default function KasirPage() {
           <div className="flex-1 overflow-y-auto pr-1 pb-6 text-left">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {customerOrders.map(order => (
-                <div 
-                  key={order.id} 
-                  className={`bg-white border rounded-[24px] p-5 shadow-sm flex flex-col justify-between h-[340px] transition-all ${
-                    order.status === "paid" ? "border-blue-300 ring-2 ring-blue-50" : "border-[#E2E8F0]"
-                  }`}
+                <div
+                  key={order.id}
+                  className={`bg-white border rounded-[24px] p-5 shadow-sm flex flex-col justify-between h-[340px] transition-all ${order.status === "paid" ? "border-blue-300 ring-2 ring-blue-50" : "border-[#E2E8F0]"
+                    }`}
                 >
                   <div>
                     {/* Order Header */}
@@ -945,13 +1053,12 @@ export default function KasirPage() {
                       </div>
 
                       <div className="text-right">
-                        <span className={`inline-block text-[9px] font-black px-2 py-0.5 rounded-full uppercase border ${
-                          order.status === "paid" ? "bg-blue-50 text-blue-600 border-blue-100" :
-                          order.status === "in_progress" ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                          "bg-slate-100 text-slate-600 border-slate-200"
-                        }`}>
+                        <span className={`inline-block text-[9px] font-black px-2 py-0.5 rounded-full uppercase border ${order.status === "paid" ? "bg-blue-50 text-blue-600 border-blue-100" :
+                            order.status === "in_progress" ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                              "bg-slate-100 text-slate-600 border-slate-200"
+                          }`}>
                           {order.status === "paid" ? "PAID (Baru)" :
-                           order.status === "in_progress" ? "Diterima / Aktif" : "Selesai"}
+                            order.status === "in_progress" ? "Diterima / Aktif" : "Selesai"}
                         </span>
                         <p className="text-[9px] text-[#94A3B8] mt-1">
                           {new Date(order.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
@@ -1273,7 +1380,7 @@ export default function KasirPage() {
                     className="bg-white border border-[#E2E8F0] rounded-[24px] overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-[340px] cursor-pointer hover:-translate-y-0.5 text-left"
                   >
                     {/* Top image area */}
-                    <div className="relative h-44 bg-gradient-to-br from-[#3B82F6] to-[#1D4ED8] flex items-center justify-center p-6 border-b border-slate-100 overflow-hidden">
+                    <div className="relative h-44 bg-gradient-to-br from-white to-slate-100 flex items-center justify-center p-6 border-b border-slate-100 overflow-hidden">
                       <img
                         src={game.image}
                         alt={game.name}
@@ -1281,13 +1388,12 @@ export default function KasirPage() {
                       />
                       {/* Status Overlay */}
                       <span
-                        className={`absolute top-4 right-4 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border shadow-sm ${
-                          game.status === "Available"
+                        className={`absolute top-4 right-4 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border shadow-sm ${game.status === "Available"
                             ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                             : game.status === "In Use"
-                            ? "bg-red-50 text-red-600 border-red-100"
-                            : "bg-amber-50 text-amber-600 border-amber-100"
-                        }`}
+                              ? "bg-red-50 text-red-600 border-red-100"
+                              : "bg-amber-50 text-amber-600 border-amber-100"
+                          }`}
                       >
                         {game.status}
                       </span>
@@ -1304,7 +1410,7 @@ export default function KasirPage() {
                     <div className="p-4 flex-1 flex flex-col justify-between text-left">
                       <div>
                         <h3 className="text-sm font-bold text-[#1E293B] truncate leading-tight mb-1">{game.name}</h3>
-                        
+
                         {/* Rating row */}
                         <div className="flex items-center gap-1.5 mb-2.5">
                           <span className="text-amber-400 text-xs">★</span>
@@ -1329,7 +1435,7 @@ export default function KasirPage() {
                         <span className="text-[10px] bg-blue-50 text-[#3B82F6] px-2 py-0.5 rounded-md font-bold uppercase tracking-wide">
                           {game.category}
                         </span>
-                        
+
                         {game.status === "Available" ? (
                           <button
                             onClick={(e) => {
@@ -1385,13 +1491,12 @@ export default function KasirPage() {
                         <td className="p-4 text-slate-500 font-medium">{game.players} Players</td>
                         <td className="p-4 text-slate-500 font-medium">{game.duration}</td>
                         <td className="p-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase border tracking-wide inline-block ${
-                            game.status === "Available"
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase border tracking-wide inline-block ${game.status === "Available"
                               ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                               : game.status === "In Use"
-                              ? "bg-red-50 text-red-600 border-red-100"
-                              : "bg-amber-50 text-amber-600 border-amber-100"
-                          }`}>
+                                ? "bg-red-50 text-red-600 border-red-100"
+                                : "bg-amber-50 text-amber-600 border-amber-100"
+                            }`}>
                             {game.status}
                           </span>
                         </td>
@@ -1422,6 +1527,155 @@ export default function KasirPage() {
                 <p className="text-sm text-[#94A3B8]">Tidak ada game yang cocok dengan filter.</p>
               </div>
             )}
+
+
+          </div>
+        </main>
+      ) : activeMenu === "settings" ? (
+        <main className="flex-1 flex flex-col overflow-y-auto bg-[#F8FAFC] p-6 md:p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">Settings</h1>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Profil & Akun */}
+            <div className="bg-white border border-[#E2E8F0] rounded-[24px] p-6 shadow-sm flex flex-col">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#3B82F6] flex items-center justify-center mb-4 border border-blue-100">
+                <User size={24} strokeWidth={1.8} />
+              </div>
+              <h2 className="text-base font-bold text-[#0F172A] mb-1">Profil & Akun</h2>
+              <p className="text-xs text-[#64748B] mb-5">Atur informasi profil dan kata sandi kasir.</p>
+
+              <div className="space-y-3 mt-auto">
+                <button
+                  onClick={() => alert('Fitur Edit Profil akan membuka popup profil.')}
+                  className="w-full flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0] hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <span className="text-sm font-semibold text-[#1E293B]">Edit Profil</span>
+                  <ChevronRight size={16} className="text-[#94A3B8]" />
+                </button>
+                <button
+                  onClick={() => alert('Fitur Ganti Password akan meminta konfirmasi password lama.')}
+                  className="w-full flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0] hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <span className="text-sm font-semibold text-[#1E293B]">Ganti Password</span>
+                  <ChevronRight size={16} className="text-[#94A3B8]" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printer & Perangkat */}
+            <div className="bg-white border border-[#E2E8F0] rounded-[24px] p-6 shadow-sm flex flex-col">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 border border-emerald-100">
+                <Printer size={24} strokeWidth={1.8} />
+              </div>
+              <h2 className="text-base font-bold text-[#0F172A] mb-1">Printer & Perangkat</h2>
+              <p className="text-xs text-[#64748B] mb-5">Koneksi mesin kasir, printer struk, dan laci uang.</p>
+
+              <div className="space-y-3 mt-auto">
+                <div className="flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0]">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-[#1E293B]">Printer Struk</span>
+                    <span className="text-[10px] text-emerald-500 font-bold">Terhubung (Epson TM-T82)</span>
+                  </div>
+                  <button onClick={() => alert('Mencetak struk test...')} className="text-xs font-bold text-[#3B82F6] px-3 py-1.5 bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg cursor-pointer">Test</button>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0]">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-[#1E293B]">Printer Dapur</span>
+                    <span className="text-[10px] text-red-500 font-bold">Terputus</span>
+                  </div>
+                  <button onClick={() => alert('Mencari printer dapur via Bluetooth/WiFi...')} className="text-xs font-bold text-[#3B82F6] px-3 py-1.5 bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg cursor-pointer">Hubungkan</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Transaksi & Pajak */}
+            <div className="bg-white border border-[#E2E8F0] rounded-[24px] p-6 shadow-sm flex flex-col">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 border border-amber-100">
+                <Receipt size={24} strokeWidth={1.8} />
+              </div>
+              <h2 className="text-base font-bold text-[#0F172A] mb-1">Transaksi & Pajak</h2>
+              <p className="text-xs text-[#64748B] mb-5">Pengaturan PB1, Service Charge, dan pembayaran.</p>
+
+              <div className="space-y-3 mt-auto">
+                <div className="flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0]">
+                  <span className="text-sm font-semibold text-[#1E293B]">Pajak Resto (PB1) 10%</span>
+                  <div
+                    onClick={() => setTaxEnabled(!taxEnabled)}
+                    className={`w-10 h-6 rounded-full relative cursor-pointer transition-colors ${taxEnabled ? "bg-emerald-500" : "bg-slate-200"}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${taxEnabled ? "right-1" : "left-1"}`} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0]">
+                  <span className="text-sm font-semibold text-[#1E293B]">Service Charge 5%</span>
+                  <div
+                    onClick={() => setServiceChargeEnabled(!serviceChargeEnabled)}
+                    className={`w-10 h-6 rounded-full relative cursor-pointer transition-colors ${serviceChargeEnabled ? "bg-emerald-500" : "bg-slate-200"}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${serviceChargeEnabled ? "right-1" : "left-1"}`} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Shift & Laporan */}
+            <div className="bg-white border border-[#E2E8F0] rounded-[24px] p-6 shadow-sm flex flex-col">
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4 border border-purple-100">
+                <Banknote size={24} strokeWidth={1.8} />
+              </div>
+              <h2 className="text-base font-bold text-[#0F172A] mb-1">Manajemen Shift</h2>
+              <p className="text-xs text-[#64748B] mb-5">Rekapitulasi kas dan laporan penutupan shift.</p>
+
+              <div className="space-y-3 mt-auto">
+                <button className="w-full flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0] hover:bg-slate-50 transition-colors cursor-pointer">
+                  <span className="text-sm font-semibold text-[#1E293B]">Setoran Awal (Modal)</span>
+                  <span className="text-xs text-[#94A3B8]">Rp 500.000</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Tutup shift kasir sekarang dan cetak rekap transaksi?')) {
+                      alert('Shift ditutup! Rekap sedang dicetak...');
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white transition-colors cursor-pointer"
+                >
+                  <span className="text-sm font-bold">Tutup Shift & Print Rekap</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Notifikasi */}
+            <div className="bg-white border border-[#E2E8F0] rounded-[24px] p-6 shadow-sm flex flex-col">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 border border-rose-100">
+                <BellRing size={24} strokeWidth={1.8} />
+              </div>
+              <h2 className="text-base font-bold text-[#0F172A] mb-1">Notifikasi Sistem</h2>
+              <p className="text-xs text-[#64748B] mb-5">Pengaturan suara dan alert pesanan baru.</p>
+
+              <div className="space-y-3 mt-auto">
+                <div className="flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0]">
+                  <span className="text-sm font-semibold text-[#1E293B]">Suara Pesanan Baru</span>
+                  <div
+                    onClick={() => setSoundEnabled(!soundEnabled)}
+                    className={`w-10 h-6 rounded-full relative cursor-pointer transition-colors ${soundEnabled ? "bg-emerald-500" : "bg-slate-200"}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${soundEnabled ? "right-1" : "left-1"}`} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl border border-[#E2E8F0]">
+                  <span className="text-sm font-semibold text-[#1E293B]">Alert Sesi Main Habis</span>
+                  <div
+                    onClick={() => setAlertEnabled(!alertEnabled)}
+                    className={`w-10 h-6 rounded-full relative cursor-pointer transition-colors ${alertEnabled ? "bg-emerald-500" : "bg-slate-200"}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${alertEnabled ? "right-1" : "left-1"}`} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </main>
       ) : (
@@ -1821,7 +2075,7 @@ export default function KasirPage() {
               <form onSubmit={(e) => {
                 e.preventDefault();
                 if (!newSessionName || !newSessionPhone) return;
-                
+
                 let initialSeconds = 3600; // default 1 hour
                 if (newSessionDuration === "2 Hours") initialSeconds = 7200;
                 else if (newSessionDuration === "3 Hours") initialSeconds = 10800;
@@ -1838,7 +2092,7 @@ export default function KasirPage() {
                 };
 
                 setSessions(prev => [newSession, ...prev]);
-                
+
                 // Reset form
                 setNewSessionName("");
                 setNewSessionPhone("");
@@ -2019,11 +2273,10 @@ export default function KasirPage() {
                     }
                     setShowConfirmModal(false);
                   }}
-                  className={`flex-1 py-2.5 rounded-xl text-white text-xs font-bold transition-all cursor-pointer ${
-                    confirmAction === "end"
+                  className={`flex-1 py-2.5 rounded-xl text-white text-xs font-bold transition-all cursor-pointer ${confirmAction === "end"
                       ? "bg-red-500 hover:bg-red-600"
                       : "bg-[#3B82F6] hover:bg-[#2563EB]"
-                  }`}
+                    }`}
                 >
                   {confirmAction === "end" ? "Confirm End" : "Confirm Extend"}
                 </button>
@@ -2044,13 +2297,13 @@ export default function KasirPage() {
               className="w-full max-w-[440px] bg-white rounded-[28px] overflow-hidden shadow-2xl relative"
             >
               {/* Header Image & Status Area */}
-              <div className="relative h-52 bg-gradient-to-br from-[#3B82F6] to-[#1D4ED8] flex items-center justify-center p-8 overflow-hidden">
+              <div className="relative h-52 bg-gradient-to-br from-white to-slate-100 flex items-center justify-center p-8 overflow-hidden">
                 <img
                   src={selectedDetailGame.image}
                   alt={selectedDetailGame.name}
                   className="h-full max-h-[140px] object-contain drop-shadow-xl z-10"
                 />
-                
+
                 {/* Close Button */}
                 <button
                   onClick={() => setSelectedDetailGame(null)}
@@ -2066,13 +2319,12 @@ export default function KasirPage() {
 
                 {/* Status Badge */}
                 <span
-                  className={`absolute bottom-4 right-4 z-20 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border shadow-sm ${
-                    selectedDetailGame.status === "Available"
+                  className={`absolute bottom-4 right-4 z-20 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border shadow-sm ${selectedDetailGame.status === "Available"
                       ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                       : selectedDetailGame.status === "In Use"
-                      ? "bg-red-50 text-red-600 border-red-100"
-                      : "bg-amber-50 text-amber-600 border-amber-100"
-                  }`}
+                        ? "bg-red-50 text-red-600 border-red-100"
+                        : "bg-amber-50 text-amber-600 border-amber-100"
+                    }`}
                 >
                   {selectedDetailGame.status}
                 </span>
@@ -2083,7 +2335,7 @@ export default function KasirPage() {
                 <h3 className="text-xl font-bold text-[#0F172A] mb-1" style={{ fontFamily: "'Poppins', sans-serif" }}>
                   {selectedDetailGame.name}
                 </h3>
-                
+
                 {/* Rating */}
                 <div className="flex items-center gap-1.5 mb-4">
                   <span className="text-amber-400 text-sm">★</span>
@@ -2117,13 +2369,12 @@ export default function KasirPage() {
                 {/* Complexity Row */}
                 <div className="flex items-center gap-2 mb-6 text-xs font-bold">
                   <span className="text-[#64748B]">Complexity:</span>
-                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] ${
-                    selectedDetailGame.complexity === "Easy"
+                  <span className={`px-2.5 py-0.5 rounded-full border text-[10px] ${selectedDetailGame.complexity === "Easy"
                       ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                       : selectedDetailGame.complexity === "Medium"
-                      ? "bg-amber-50 text-amber-600 border-amber-100"
-                      : "bg-red-50 text-red-600 border-red-100"
-                  }`}>
+                        ? "bg-amber-50 text-amber-600 border-amber-100"
+                        : "bg-red-50 text-red-600 border-red-100"
+                    }`}>
                     {selectedDetailGame.complexity || "Easy"}
                   </span>
                 </div>

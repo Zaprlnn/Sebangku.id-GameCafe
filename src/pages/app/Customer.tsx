@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -6,9 +6,11 @@ import {
   Bell, Search, Menu, X, Edit2, Flame, Trophy, Target, Zap,
   ChevronRight, Phone, Mail, Check, Save, Undo2, Clock, Users, Package, CreditCard,
   FileText, ChevronDown, Utensils, Compass, Award, Star, Moon, Shield, Gem, Brain, Dices,
-  ShoppingBag, Plus, Minus, Camera, CheckCircle, Send, Printer
+  ShoppingBag, Plus, Minus, Camera, CheckCircle, Send, Printer, PlayCircle, Trash2, AlertTriangle
 } from "lucide-react";
+import { BOARDGAMES_SEED } from "../../data/boardgames_seed";
 import sebangkuLogo from "../../assets/images/logo_sebangku_cafee.png";
+import { supabase } from "../../lib/supabase";
 
 // Import Board Game Images
 import mystKidsImg from "../../assets/images/Mysterium Kids.png";
@@ -24,30 +26,30 @@ import goldOrinImg from "../../assets/images/Gold Am Orinoko.png";
 import fourRowImg from "../../assets/images/4 in a Row On The Go.png";
 import magicMazeImg from "../../assets/images/Magic Maze.png";
 
-// ─── Mock User Data ──────────────────────────────────────────────────────────
-const MOCK_USER = {
-  name: "Andi Saputra",
-  firstName: "Andi",
-  lastName: "Saputra",
-  email: "andi@sebangku.com",
-  phone: "081234567890",
-  birthDate: "1995-03-15", // formatted for date inputs
-  memberSince: "Maret 2024",
-  level: 12,
-  levelLabel: "Regular Player",
-  kunjungan: 24,
-  waktuJam: 48,
-  winRate: 70,
-  streakHari: 5,
-  totalMenang: 17,
-  gameDicoba: 8,
-  achievement: "6/12",
-  status: "Active · Regular",
-  favGames: [
-    { rank: 1, name: "Lucky Captain", image: luckyCapImg },
-    { rank: 2, name: "Detective Charlie", image: detCharImg },
-    { rank: 3, name: "Mysterium Kids", image: mystKidsImg },
-  ],
+// ─── Mock User Data ──────────────────────────────────────────────────────────  
+const DEFAULT_USER = {
+  name: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  birthDate: "",
+  memberSince: "",
+  level: 1,
+  levelLabel: "New Player",
+  kunjungan: 0,
+  waktuJam: 0,
+  winRate: 0,
+  streakHari: 0,
+  totalMenang: 0,
+  gameDicoba: 0,
+  achievement: "0/12",
+  status: "Active",
+  gameFavorit: "",
+  totalBelanjaFNB: 0,
+  totalTransaksi: 0,
+  rataRataKunjungan: 0,
+  favGames: [] as { rank: number, name: string, image: string }[],
 };
 
 // ─── Products & Games Data (synced from Owner via localStorage) ──────────────
@@ -64,18 +66,18 @@ const PRODUCTS_FALLBACK = [
 ];
 
 const RENT_GAMES_FALLBACK = [
-  { id: "g1", name: "Mysterium Kids", price: 15000, category: "Cooperative", emoji: "🎲", image: mystKidsImg },
-  { id: "g2", name: "Lucky Captain", price: 12000, category: "Strategy", emoji: "🚂", image: luckyCapImg },
-  { id: "g3", name: "Kraken Attack", price: 12000, category: "Strategy", emoji: "🦠", image: krakenAttImg },
-  { id: "g4", name: "Sleepy Castle", price: 10000, category: "Strategy", emoji: "🏠", image: sleepyCasImg },
-  { id: "g5", name: "Detective Charlie", price: 8000, category: "Strategy", emoji: "👑", image: detCharImg },
-  { id: "g6", name: "Ruben Rallye", price: 8000, category: "Family", emoji: "🕵️", image: rubenRalImg },
-  { id: "g7", name: "Waroong Wars", price: 15000, category: "Strategy", emoji: "🐦", image: waroongWarsImg },
-  { id: "g8", name: "Fold it", price: 10000, category: "Party", emoji: "🌲", image: foldItImg },
-  { id: "g9", name: "Slide Quest", price: 10000, category: "Party", emoji: "🛡️", image: slideQuestImg },
-  { id: "g10", name: "Gold Am Orinoko", price: 12000, category: "Strategy", emoji: "🥇", image: goldOrinImg },
-  { id: "g11", name: "4 in a Row On The Go", price: 5000, category: "Family", emoji: "🔘", image: fourRowImg },
-  { id: "g12", name: "Magic Maze", price: 12000, category: "Strategy", emoji: "🧙", image: magicMazeImg },
+  { id: "g1", name: "Mysterium Kids", price: 15000, category: "Cooperative", emoji: "🎲", image: mystKidsImg, description: "Bekerjasama untuk menemukan harta karun dengan mendengarkan suara misterius.", tutorialLink: "https://www.youtube.com/watch?v=F6K2k4Fm4aY" },
+  { id: "g2", name: "Lucky Captain", price: 12000, category: "Strategy", emoji: "🚂", image: luckyCapImg, description: "Game strategi ringan tentang mengelola kapal dan kru bajak laut.", tutorialLink: "https://www.youtube.com/results?search_query=how+to+play+lucky+captain+board+game" },
+  { id: "g3", name: "Kraken Attack", price: 12000, category: "Strategy", emoji: "🦠", image: krakenAttImg, description: "Lindungi kapalmu dari serangan Kraken! Game kooperatif yang seru.", tutorialLink: "https://www.youtube.com/watch?v=D-nU587JdYQ" },
+  { id: "g4", name: "Sleepy Castle", price: 10000, category: "Strategy", emoji: "🏠", image: sleepyCasImg, description: "Bangun kastil sebelum naga terbangun.", tutorialLink: "https://www.youtube.com/results?search_query=how+to+play+sleepy+castle+game" },
+  { id: "g5", name: "Detective Charlie", price: 8000, category: "Strategy", emoji: "👑", image: detCharImg, description: "Bantu Detektif Charlie memecahkan misteri di pulau liburan.", tutorialLink: "https://www.youtube.com/watch?v=9g0H290L2yE" },
+  { id: "g6", name: "Ruben Rallye", price: 8000, category: "Family", emoji: "🕵️", image: rubenRalImg, description: "Balapan seru dengan karakter-karakter unik.", tutorialLink: "https://www.youtube.com/results?search_query=how+to+play+ruben+rallye" },
+  { id: "g7", name: "Waroong Wars", price: 15000, category: "Strategy", emoji: "🐦", image: waroongWarsImg, description: "Jadilah pedagang warung terbaik dan kumpulkan menu-menu tradisional.", tutorialLink: "https://www.youtube.com/watch?v=rFvQ_R4m_wU" },
+  { id: "g8", name: "Fold it", price: 10000, category: "Party", emoji: "🌲", image: foldItImg, description: "Lipat sapu tangan ajaib secepat mungkin sesuai dengan resep yang dipesan.", tutorialLink: "https://www.youtube.com/watch?v=Ff6_h_w23Hw" },
+  { id: "g9", name: "Slide Quest", price: 10000, category: "Party", emoji: "🛡️", image: slideQuestImg, description: "Bekerjasama menggerakkan papan untuk memandu kesatria ke akhir level.", tutorialLink: "https://www.youtube.com/watch?v=2e6i0mQ18r0" },
+  { id: "g10", name: "Gold Am Orinoko", price: 12000, category: "Strategy", emoji: "🥇", image: goldOrinImg, description: "Jelajahi sungai Orinoko dan kumpulkan emas sebanyak-banyaknya.", tutorialLink: "https://www.youtube.com/results?search_query=how+to+play+gold+am+orinoko" },
+  { id: "g11", name: "4 in a Row On The Go", price: 5000, category: "Family", emoji: "🔘", image: fourRowImg, description: "Game klasik menyusun 4 keping sebaris secara vertikal, horizontal, atau diagonal.", tutorialLink: "https://www.youtube.com/watch?v=yDWPi1pZ0Po" },
+  { id: "g12", name: "Magic Maze", price: 12000, category: "Strategy", emoji: "🧙", image: magicMazeImg, description: "Curi barang dari mall ajaib tanpa berbicara satu sama lain. Sangat intens!", tutorialLink: "https://www.youtube.com/watch?v=M6XJ2D-FpBM" },
 ];
 
 // ─── Nav Config ──────────────────────────────────────────────────────────────
@@ -129,16 +131,118 @@ function AvatarCircle({ name, size = 48, fontSize = 18 }: AvatarCircleProps) {
   );
 }
 
+// ─── Toast Notification System ───────────────────────────────────────────────
+type ToastType = "success" | "error" | "warning" | "info";
+interface Toast {
+  id: number;
+  message: string;
+  type: ToastType;
+  title?: string;
+}
+
+function useToast() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const showToast = useCallback((message: string, type: ToastType = "info", title?: string) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type, title }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  }, []);
+
+  const removeToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  return { toasts, showToast, removeToast };
+}
+
+function ToastContainer({ toasts, onRemove }: { toasts: Toast[], onRemove: (id: number) => void }) {
+  const toastConfig: Record<ToastType, { bg: string; border: string; icon: React.ReactNode; titleColor: string }> = {
+    success: {
+      bg: "linear-gradient(135deg, #ECFDF5, #F0FDF4)",
+      border: "#86EFAC",
+      titleColor: "#15803D",
+      icon: <CheckCircle size={20} className="text-emerald-500 shrink-0" strokeWidth={2} />,
+    },
+    error: {
+      bg: "linear-gradient(135deg, #FEF2F2, #FFF1F1)",
+      border: "#FCA5A5",
+      titleColor: "#DC2626",
+      icon: <AlertTriangle size={20} className="text-red-500 shrink-0" strokeWidth={2} />,
+    },
+    warning: {
+      bg: "linear-gradient(135deg, #FFFBEB, #FEFCE8)",
+      border: "#FCD34D",
+      titleColor: "#B45309",
+      icon: <AlertTriangle size={20} className="text-amber-500 shrink-0" strokeWidth={2} />,
+    },
+    info: {
+      bg: "linear-gradient(135deg, #EFF6FF, #F0F9FF)",
+      border: "#93C5FD",
+      titleColor: "#1D4ED8",
+      icon: <Bell size={20} className="text-blue-500 shrink-0" strokeWidth={2} />,
+    },
+  };
+
+  return (
+    <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2.5 pointer-events-none" style={{ maxWidth: 360 }}>
+      <AnimatePresence>
+        {toasts.map(toast => {
+          const cfg = toastConfig[toast.type];
+          return (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 80, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 80, scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl border"
+              style={{
+                background: cfg.bg,
+                borderColor: cfg.border,
+                borderWidth: 1,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+              }}
+            >
+              <div className="mt-0.5">{cfg.icon}</div>
+              <div className="flex-1 min-w-0">
+                {toast.title && (
+                  <p className="text-xs font-black mb-0.5" style={{ color: cfg.titleColor, fontFamily: "'Poppins', sans-serif" }}>
+                    {toast.title}
+                  </p>
+                )}
+                <p className="text-xs text-[#334155] leading-relaxed" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                  {toast.message}
+                </p>
+              </div>
+              <button
+                onClick={() => onRemove(toast.id)}
+                className="text-[#94A3B8] hover:text-[#475569] transition-colors cursor-pointer mt-0.5 shrink-0"
+              >
+                <X size={14} />
+              </button>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── PAGES ───────────────────────────────────────────────────────────────────
 
 // ── Profil Page ──
 interface ProfilPageProps {
-  userData: typeof MOCK_USER;
-  setUserData: React.Dispatch<React.SetStateAction<typeof MOCK_USER>>;
+  userData: typeof DEFAULT_USER;
+  setUserData: React.Dispatch<React.SetStateAction<typeof DEFAULT_USER>>;
+  showToast: (message: string, type?: ToastType, title?: string) => void;
 }
 
-function ProfilPage({ userData, setUserData }: ProfilPageProps) {
+function ProfilPage({ userData, setUserData, showToast }: ProfilPageProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState({
     firstName: userData.firstName,
     lastName: userData.lastName,
@@ -158,14 +262,52 @@ function ProfilPage({ userData, setUserData }: ProfilPageProps) {
     });
   }, [userData, isEditing]);
 
-  const handleSave = () => {
-    setUserData(prev => ({
-      ...prev,
-      ...editForm,
-      name: `${editForm.firstName} ${editForm.lastName}`.trim(),
-    }));
-    setIsEditing(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) {
+        showToast("Anda belum login atau sesi telah berakhir. Silakan refresh halaman.", "error", "Gagal Menyimpan");
+        setIsSaving(false);
+        return;
+      }
+      
+      const userId = authData.user.id;
+      console.log("Saving profile for user:", userId, editForm);
+
+      // Use upsert so it works even if the row doesn't exist yet
+      const { data: upsertData, error } = await supabase
+        .from('customer_profiles')
+        .upsert({
+          user_id: userId,
+          nama_depan: editForm.firstName,
+          nama_belakang: editForm.lastName,
+          tanggal_lahir: editForm.birthDate,
+          phone: editForm.phone,
+        }, { onConflict: 'user_id' })
+        .select();
+
+      console.log("Upsert result:", upsertData, error);
+        
+      if (!error) {
+        setUserData(prev => ({
+          ...prev,
+          ...editForm,
+          name: `${editForm.firstName} ${editForm.lastName}`.trim(),
+        }));
+        setIsEditing(false);
+        showToast("Data profil Anda berhasil diperbarui.", "success", "Profil Diperbarui!");
+      } else {
+        showToast("Gagal menyimpan: " + error.message, "error", "Terjadi Kesalahan");
+        console.error("Gagal menyimpan:", error);
+      }
+    } catch (err: any) {
+      showToast("Error: " + err?.message, "error", "Terjadi Kesalahan");
+      console.error("Error saving profile:", err);
+    }
+    setIsSaving(false);
   };
+
 
   const statCards = [
     { icon: Flame, label: "STREAK AKTIF", value: `${userData.streakHari} hari`, color: "#EF4444", bg: "#FEF2F2" },
@@ -291,9 +433,15 @@ function ProfilPage({ userData, setUserData }: ProfilPageProps) {
               </button>
               <button
                 onClick={handleSave}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#3B82F6] text-white text-xs font-bold hover:bg-[#2563EB] transition-colors cursor-pointer shadow-sm"
+                disabled={isSaving}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#3B82F6] text-white text-xs font-bold hover:bg-[#2563EB] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-sm"
               >
-                <Save size={12} /> Simpan
+                {isSaving ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full" />
+                ) : (
+                  <Save size={12} />
+                )}
+                {isSaving ? "Menyimpan..." : "Simpan"}
               </button>
             </div>
           )}
@@ -481,25 +629,112 @@ const MOCK_HISTORY_GAMES = [
   { id: 8, name: "Magic Maze", rating: 5, date: "8 Mei 2025", duration: "0h 45m", table: "Table C3", players: 6, status: "WIN", comment: "Team MVP! All clues landed perfectly on blue cards.", image: magicMazeImg }
 ];
 
+// ── Confirm Clear Modal ──
+function ConfirmClearModal({
+  isOpen, title, description, onConfirm, onCancel, isLoading
+}: {
+  isOpen: boolean;
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 12 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl flex flex-col items-center gap-4 text-center"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+              <AlertTriangle size={28} className="text-red-500" strokeWidth={2} />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-[#0F172A] mb-1">{title}</h3>
+              <p className="text-xs text-[#64748B] leading-relaxed">{description}</p>
+            </div>
+            <div className="flex w-full gap-2 mt-1">
+              <button
+                onClick={onCancel}
+                disabled={isLoading}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={onConfirm}
+                disabled={isLoading}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                {isLoading ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full" />
+                ) : (
+                  <Trash2 size={12} />
+                )}
+                {isLoading ? "Menghapus..." : "Ya, Hapus"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 // ── History Game Page ──
-function HistoryPage({ searchQuery }: { searchQuery: string }) {
+function HistoryPage({ searchQuery, data = [], onClearHistory, showToast }: { searchQuery: string, data?: any[], onClearHistory?: () => void, showToast?: (msg: string, type?: ToastType, title?: string) => void }) {
   const filteredHistoryGames = useMemo(() => {
-    return MOCK_HISTORY_GAMES.filter(game =>
-      game.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      game.comment.toLowerCase().includes(searchQuery.toLowerCase())
+    return data.filter(game =>
+      (game.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (game.comment || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, data]);
 
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearHistory = async () => {
+    setIsClearing(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Belum login");
+      const { error } = await supabase
+        .from('customer_game_history')
+        .delete()
+        .eq('user_id', authData.user.id);
+      if (error) throw error;
+      setShowConfirm(false);
+      showToast?.("Semua history game berhasil dihapus.", "success", "Riwayat Dihapus");
+      if (onClearHistory) onClearHistory();
+    } catch (err: any) {
+      showToast?.("Gagal menghapus riwayat: " + err.message, "error", "Terjadi Kesalahan");
+    }
+    setIsClearing(false);
+  };
 
   const stats = [
-    { id: "total_sesi", value: 8, label: "Total Sesi", icon: Gamepad2, color: "#3B82F6", bg: "#EFF6FF" },
-    { id: "total_menang", value: 5, label: "Total Menang", icon: Trophy, color: "#3B82F6", bg: "#EFF6FF" },
-    { id: "game_unik", value: 8, label: "Game Unik", icon: Package, color: "#3B82F6", bg: "#EFF6FF" }
+    { id: "total_sesi", value: data.length, label: "Total Sesi", icon: Gamepad2, color: "#3B82F6", bg: "#EFF6FF" },
+    { id: "total_menang", value: data.filter(d => d.status === 'WIN').length, label: "Total Menang", icon: Trophy, color: "#3B82F6", bg: "#EFF6FF" },
+    { id: "game_unik", value: new Set(data.map(d => d.name)).size, label: "Game Unik", icon: Package, color: "#3B82F6", bg: "#EFF6FF" }
   ];
 
   return (
     <div className="flex flex-col gap-5 md:gap-6 p-4 md:p-8 max-w-7xl mx-auto w-full">
+      <ConfirmClearModal
+        isOpen={showConfirm}
+        title="Hapus Semua History Game?"
+        description="Semua riwayat sesi bermain Anda akan dihapus secara permanen dan tidak dapat dikembalikan."
+        onConfirm={handleClearHistory}
+        onCancel={() => setShowConfirm(false)}
+        isLoading={isClearing}
+      />
+
       {/* Breadcrumb */}
       <div className="hidden md:flex items-center gap-2 text-sm">
         <span className="text-[#64748B] hover:text-[#3B82F6] cursor-pointer transition-colors">BoardVerse</span>
@@ -509,6 +744,14 @@ function HistoryPage({ searchQuery }: { searchQuery: string }) {
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">History Game</h1>
+        {data.length > 0 && (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <Trash2 size={13} /> Hapus Riwayat
+          </button>
+        )}
       </div>
 
       {/* Top Stats Cards */}
@@ -537,8 +780,8 @@ function HistoryPage({ searchQuery }: { searchQuery: string }) {
 
               {/* Win/Loss Badge */}
               <span className={`absolute top-4 right-4 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border shadow-sm flex items-center gap-1 ${game.status === "WIN"
-                  ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                  : "bg-slate-100 text-slate-600 border-slate-200"
+                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                : "bg-slate-100 text-slate-600 border-slate-200"
                 }`}>
                 {game.status === "WIN" ? (
                   <>
@@ -576,9 +819,9 @@ function HistoryPage({ searchQuery }: { searchQuery: string }) {
 
                   {/* Table Badge */}
                   <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${game.table.includes("A") ? "bg-red-50 text-red-500" :
-                      game.table.includes("B") ? "bg-amber-50 text-amber-600" :
-                        game.table.includes("C") ? "bg-purple-50 text-purple-600" :
-                          "bg-blue-50 text-blue-500"
+                    game.table.includes("B") ? "bg-amber-50 text-amber-600" :
+                      game.table.includes("C") ? "bg-purple-50 text-purple-600" :
+                        "bg-blue-50 text-blue-500"
                     }`}>
                     {game.table}
                   </span>
@@ -607,9 +850,24 @@ function HistoryPage({ searchQuery }: { searchQuery: string }) {
         ))}
       </div>
       {filteredHistoryGames.length === 0 && (
-        <div className="text-center py-12 text-[#64748B] text-sm">
-          Tidak ada riwayat game yang cocok dengan pencarian.
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          className="flex flex-col items-center justify-center py-20 gap-5"
+        >
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #EFF6FF, #DBEAFE)" }}>
+            <Gamepad2 size={36} className="text-[#3B82F6]" strokeWidth={1.5} />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-bold text-[#0F172A]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+              {searchQuery ? "Tidak ada hasil pencarian" : "Belum Ada History Game"}
+            </p>
+            <p className="text-sm text-[#64748B] mt-1.5">
+              {searchQuery
+                ? `Tidak ada game yang cocok dengan "${searchQuery}"`
+                : "Riwayat sesi bermain Anda akan muncul di sini setelah bermain di Sebangku Cafe."}
+            </p>
+          </div>
+        </motion.div>
       )}
     </div>
   );
@@ -627,24 +885,55 @@ const MOCK_VISITS = [
   { id: 8, date: "8 Mei 2025", time: "20:00 WIB", gameName: "Magic Maze", gameImage: magicMazeImg, duration: "0h 45m", table: "C3", friends: 6, spending: 55000 }
 ];
 
-// ── Kunjungan Page ──
-function KunjunganPage({ searchQuery }: { searchQuery: string }) {
+// ── History Kunjungan Page ──
+function KunjunganPage({ searchQuery, data = [], onClearHistory, showToast }: { searchQuery: string, data?: any[], onClearHistory?: () => void, showToast?: (msg: string, type?: ToastType, title?: string) => void }) {
   const filteredVisits = useMemo(() => {
-    return MOCK_VISITS.filter(visit =>
-      visit.gameName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      visit.table.toLowerCase().includes(searchQuery.toLowerCase())
+    return data.filter(visit =>
+      (visit.gameName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (visit.table || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, data]);
+
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearHistory = async () => {
+    setIsClearing(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Belum login");
+      // Kunjungan bersumber dari customer_transactions, hapus semua transaksi user
+      const { error } = await supabase
+        .from('customer_transactions')
+        .delete()
+        .eq('user_id', authData.user.id);
+      if (error) throw error;
+      setShowConfirm(false);
+      showToast?.("Semua history kunjungan berhasil dihapus.", "success", "Riwayat Dihapus");
+      if (onClearHistory) onClearHistory();
+    } catch (err: any) {
+      showToast?.("Gagal menghapus riwayat: " + err.message, "error", "Terjadi Kesalahan");
+    }
+    setIsClearing(false);
+  };
 
   const stats = [
-    { id: "total_kunjungan", value: "24", label: "Total Kunjungan", icon: Calendar, color: "#3B82F6", bg: "#EFF6FF" },
-    { id: "bulan_ini", value: "4", label: "Bulan Ini", icon: Calendar, color: "#3B82F6", bg: "#EFF6FF" },
-    { id: "total_durasi", value: "48h", label: "Total Durasi", icon: Clock, color: "#3B82F6", bg: "#EFF6FF" },
-    { id: "total_belanja", value: "Rp 1.2Jt", label: "Total Belanja", icon: CreditCard, color: "#3B82F6", bg: "#EFF6FF" }
+    { id: "total_visit", value: data.length, label: "Total Kunjungan", icon: Users, color: "#3B82F6", bg: "#EFF6FF" },
+    { id: "avg_spend", value: `Rp ${Math.round(data.reduce((acc, curr) => acc + (curr.spending || 0), 0) / (data.length || 1)).toLocaleString("id-ID")}`, label: "Rata-rata Pengeluaran", icon: Receipt, color: "#10B981", bg: "#ECFDF5" },
+    { id: "avg_friend", value: Math.round(data.reduce((acc, curr) => acc + (curr.friends || 1), 0) / (data.length || 1)), label: "Rata-rata Teman", icon: Users, color: "#8B5CF6", bg: "#F3E8FF" }
   ];
 
   return (
     <div className="flex flex-col gap-5 md:gap-6 p-4 md:p-8 max-w-7xl mx-auto w-full">
+      <ConfirmClearModal
+        isOpen={showConfirm}
+        title="Hapus Semua History Kunjungan?"
+        description="Semua riwayat kunjungan Anda akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan."
+        onConfirm={handleClearHistory}
+        onCancel={() => setShowConfirm(false)}
+        isLoading={isClearing}
+      />
+
       {/* Breadcrumb */}
       <div className="hidden md:flex items-center gap-2 text-sm">
         <span className="text-[#64748B] hover:text-[#3B82F6] cursor-pointer transition-colors">BoardVerse</span>
@@ -652,8 +941,16 @@ function KunjunganPage({ searchQuery }: { searchQuery: string }) {
         <span className="text-[#3B82F6] font-semibold">History Kunjungan</span>
       </div>
 
-      <div>
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">History Kunjungan</h1>
+        {data.length > 0 && (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <Trash2 size={13} /> Hapus Riwayat
+          </button>
+        )}
       </div>
 
       {/* Top Stats Cards */}
@@ -675,6 +972,9 @@ function KunjunganPage({ searchQuery }: { searchQuery: string }) {
       <div className="bg-white border border-[#E2E8F0] rounded-[24px] overflow-hidden shadow-sm mt-2">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
           <h2 className="text-base font-bold text-[#0F172A]">Riwayat Kunjungan</h2>
+          {data.length > 0 && (
+            <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">{data.length} kunjungan tercatat</span>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
@@ -706,9 +1006,9 @@ function KunjunganPage({ searchQuery }: { searchQuery: string }) {
                   <td className="p-4 text-slate-500 font-semibold">{visit.duration}</td>
                   <td className="p-4">
                     <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${visit.table.includes("A") ? "bg-red-50 text-red-500" :
-                        visit.table.includes("B") ? "bg-amber-50 text-amber-600" :
-                          visit.table.includes("C") ? "bg-purple-50 text-purple-600" :
-                            "bg-blue-50 text-blue-500"
+                      visit.table.includes("B") ? "bg-amber-50 text-amber-600" :
+                        visit.table.includes("C") ? "bg-purple-50 text-purple-600" :
+                          "bg-blue-50 text-blue-500"
                       }`}>
                       {visit.table}
                     </span>
@@ -726,8 +1026,22 @@ function KunjunganPage({ searchQuery }: { searchQuery: string }) {
               ))}
               {filteredVisits.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-[#64748B] text-sm">
-                    Tidak ada riwayat kunjungan yang cocok dengan pencarian.
+                  <td colSpan={6}>
+                    <div className="flex flex-col items-center justify-center py-16 gap-4">
+                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #EFF6FF, #DBEAFE)" }}>
+                        <Calendar size={30} className="text-[#3B82F6]" strokeWidth={1.5} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-bold text-[#0F172A]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                          {searchQuery ? "Tidak ada hasil pencarian" : "Belum Ada Riwayat Kunjungan"}
+                        </p>
+                        <p className="text-xs text-[#64748B] mt-1">
+                          {searchQuery
+                            ? `Tidak ada kunjungan yang cocok dengan "${searchQuery}"`
+                            : "Riwayat kunjungan Anda akan muncul di sini setelah datang ke Sebangku Cafe."}
+                        </p>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -741,11 +1055,11 @@ function KunjunganPage({ searchQuery }: { searchQuery: string }) {
 
 // ── Mock Transactions Data ──────────────────────────────────────────────────
 const MOCK_TRANSACTIONS = [
-  { 
-    id: 1, 
-    date: "8 Jun 2025 · 14:05 WIB", 
-    items: "Mie Goreng · Kopi Susu · Mysterium Kids 2h Rental", 
-    amount: 82000, 
+  {
+    id: 1,
+    date: "8 Jun 2025 · 14:05 WIB",
+    items: "Mie Goreng · Kopi Susu · Mysterium Kids 2h Rental",
+    amount: 82000,
     method: "QRIS",
     details: [
       { name: "Mie Goreng", price: 25000, image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=200&fit=crop&q=80" },
@@ -753,22 +1067,22 @@ const MOCK_TRANSACTIONS = [
       { name: "Mysterium Kids (2h)", price: 35000, image: mystKidsImg }
     ]
   },
-  { 
-    id: 2, 
-    date: "5 Jun 2025 · 16:35 WIB", 
-    items: "Es Teh · Lucky Captain 1h Rental", 
-    amount: 43000, 
+  {
+    id: 2,
+    date: "5 Jun 2025 · 16:35 WIB",
+    items: "Es Teh · Lucky Captain 1h Rental",
+    amount: 43000,
     method: "Cash",
     details: [
       { name: "Es Teh", price: 8000, image: "https://images.unsplash.com/photo-1497534446932-c925b458314e?w=200&fit=crop&q=80" },
       { name: "Lucky Captain (1h)", price: 35000, image: luckyCapImg }
     ]
   },
-  { 
-    id: 3, 
-    date: "1 Jun 2025 · 13:05 WIB", 
-    items: "Snack Mix · Es Kopi · Kraken Attack 3h Rental", 
-    amount: 95000, 
+  {
+    id: 3,
+    date: "1 Jun 2025 · 13:05 WIB",
+    items: "Snack Mix · Es Kopi · Kraken Attack 3h Rental",
+    amount: 95000,
     method: "Transfer",
     details: [
       { name: "Snack Mix", price: 15000, image: "https://images.unsplash.com/photo-1599490659213-e2b9527b0876?w=200&fit=crop&q=80" },
@@ -776,22 +1090,22 @@ const MOCK_TRANSACTIONS = [
       { name: "Kraken Attack (3h)", price: 60000, image: krakenAttImg }
     ]
   },
-  { 
-    id: 4, 
-    date: "28 Mei 2025 · 15:05 WIB", 
-    items: "Nasi Goreng · Sleepy Castle 1h Rental", 
-    amount: 57000, 
-    method: "Cash",
+  {
+    id: 4,
+    date: "28 Mei 2025 · 15:05 WIB",
+    items: "Croissant · Sleepy Castle 1h Rental",
+    amount: 57000,
+    method: "QRIS",
     details: [
-      { name: "Nasi Goreng", price: 22000, image: "https://images.unsplash.com/photo-1626804475315-9644b37a2fe4?w=200&fit=crop&q=80" },
+      { name: "Croissant", price: 22000, image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&fit=crop&q=80" },
       { name: "Sleepy Castle (1h)", price: 35000, image: sleepyCasImg }
     ]
   },
-  { 
-    id: 5, 
-    date: "22 Mei 2025 · 17:05 WIB", 
-    items: "Kentang Goreng · Detective Charlie 2h Rental", 
-    amount: 68000, 
+  {
+    id: 5,
+    date: "22 Mei 2025 · 17:05 WIB",
+    items: "Kentang Goreng · Detective Charlie 2h Rental",
+    amount: 68000,
     method: "QRIS",
     details: [
       { name: "Kentang Goreng", price: 18000, image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=200&fit=crop&q=80" },
@@ -800,27 +1114,57 @@ const MOCK_TRANSACTIONS = [
   }
 ];
 
-// ── Transaksi Page ──
-function TransaksiPage({ searchQuery }: { searchQuery: string }) {
-  const [transactions] = useState(MOCK_TRANSACTIONS);
+// ── Riwayat Transaksi Page ──
+function TransaksiPage({ searchQuery, data = [], userData, onClearHistory, showToast }: { searchQuery: string, data?: any[], userData?: any, onClearHistory?: () => void, showToast?: (msg: string, type?: ToastType, title?: string) => void }) {
+  const transactions = data;
   const [expandedTx, setExpandedTx] = useState<number | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(tx =>
-      tx.items.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.method.toLowerCase().includes(searchQuery.toLowerCase())
+      (tx.items || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (tx.date || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (tx.method || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [transactions, searchQuery]);
 
+  const handleClearHistory = async () => {
+    setIsClearing(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Belum login");
+      const { error } = await supabase
+        .from('customer_transactions')
+        .delete()
+        .eq('user_id', authData.user.id);
+      if (error) throw error;
+      setShowConfirm(false);
+      showToast?.("Semua riwayat transaksi berhasil dihapus.", "success", "Riwayat Dihapus");
+      if (onClearHistory) onClearHistory();
+    } catch (err: any) {
+      showToast?.("Gagal menghapus riwayat: " + err.message, "error", "Terjadi Kesalahan");
+    }
+    setIsClearing(false);
+  };
+
   const stats = [
-    { id: "total_fnb", value: "Rp 345,000", label: "Total Belanja F&B", icon: Utensils, color: "#3B82F6", bg: "#EFF6FF" },
-    { id: "total_tx", value: "5 kali", label: "Total Transaksi", icon: Receipt, color: "#3B82F6", bg: "#EFF6FF" },
-    { id: "avg_kunjungan", value: "Rp 69,000", label: "Rata-rata / Kunjungan", icon: BarChart2, color: "#3B82F6", bg: "#EFF6FF" }
+    { id: "total_fnb", value: `Rp ${(userData?.totalBelanjaFNB || 0).toLocaleString("id-ID")}`, label: "Total Belanja F&B", icon: Utensils, color: "#3B82F6", bg: "#EFF6FF" },
+    { id: "total_tx", value: `${userData?.totalTransaksi || 0} kali`, label: "Total Transaksi", icon: Receipt, color: "#3B82F6", bg: "#EFF6FF" },
+    { id: "avg_kunjungan", value: `Rp ${(userData?.rataRataKunjungan || 0).toLocaleString("id-ID")}`, label: "Rata-rata / Kunjungan", icon: BarChart2, color: "#3B82F6", bg: "#EFF6FF" }
   ];
 
   return (
     <div className="flex flex-col gap-5 md:gap-6 p-4 md:p-8 max-w-7xl mx-auto w-full">
+      <ConfirmClearModal
+        isOpen={showConfirm}
+        title="Hapus Semua Riwayat Transaksi?"
+        description="Semua data transaksi Anda akan dihapus secara permanen dari sistem. Tindakan ini tidak dapat dibatalkan."
+        onConfirm={handleClearHistory}
+        onCancel={() => setShowConfirm(false)}
+        isLoading={isClearing}
+      />
+
       {/* Breadcrumb */}
       <div className="hidden md:flex items-center gap-2 text-sm">
         <span className="text-[#64748B] hover:text-[#3B82F6] cursor-pointer transition-colors">BoardVerse</span>
@@ -828,8 +1172,16 @@ function TransaksiPage({ searchQuery }: { searchQuery: string }) {
         <span className="text-[#3B82F6] font-semibold">Riwayat Transaksi</span>
       </div>
 
-      <div>
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">Riwayat Transaksi</h1>
+        {data.length > 0 && (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            <Trash2 size={13} /> Hapus Riwayat
+          </button>
+        )}
       </div>
 
       {/* Top Stats Cards */}
@@ -849,8 +1201,13 @@ function TransaksiPage({ searchQuery }: { searchQuery: string }) {
 
       {/* Purchase List Card */}
       <div className="bg-white border border-[#E2E8F0] rounded-[24px] p-6 shadow-sm mt-2 text-left">
-        <h2 className="text-base font-bold text-[#0F172A] mb-6">Riwayat Pembelian F&B</h2>
-        
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-base font-bold text-[#0F172A]">Riwayat Pembelian F&B</h2>
+          {data.length > 0 && (
+            <span className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">{data.length} transaksi tercatat</span>
+          )}
+        </div>
+
         {/* Timeline Layout */}
         <div className="relative pl-8 md:pl-10 border-l border-[#E2E8F0] space-y-6">
           {filteredTransactions.map(tx => (
@@ -861,7 +1218,7 @@ function TransaksiPage({ searchQuery }: { searchQuery: string }) {
               </div>
 
               {/* Transaction Item Card */}
-              <div 
+              <div
                 onClick={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}
                 className="bg-white border border-[#E2E8F0] hover:border-[#3B82F6]/30 rounded-2xl p-4 md:p-5 flex flex-col gap-4 cursor-pointer hover:shadow-sm transition-all"
               >
@@ -870,21 +1227,20 @@ function TransaksiPage({ searchQuery }: { searchQuery: string }) {
                     <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">{tx.date}</p>
                     <p className="text-xs font-bold text-[#1E293B] mt-1 truncate pr-4">{tx.items}</p>
                   </div>
-                  
+
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
                       <p className="text-sm font-black text-[#0F172A]">Rp {tx.amount.toLocaleString("id-ID")}</p>
-                      <span className={`inline-block text-[9px] font-black px-2 py-0.5 rounded-full mt-1.5 ${
-                        tx.method === "QRIS" ? "bg-blue-50 text-[#3B82F6]" :
-                        tx.method === "Cash" ? "bg-emerald-50 text-emerald-600" :
-                        "bg-purple-50 text-purple-600"
-                      }`}>
+                      <span className={`inline-block text-[9px] font-black px-2 py-0.5 rounded-full mt-1.5 ${tx.method === "QRIS" ? "bg-blue-50 text-[#3B82F6]" :
+                          tx.method === "Cash" ? "bg-emerald-50 text-emerald-600" :
+                            "bg-purple-50 text-purple-600"
+                        }`}>
                         {tx.method}
                       </span>
                     </div>
-                    <ChevronDown 
-                      size={16} 
-                      className={`text-[#94A3B8] transition-transform duration-200 ${expandedTx === tx.id ? "rotate-180" : ""}`} 
+                    <ChevronDown
+                      size={16}
+                      className={`text-[#94A3B8] transition-transform duration-200 ${expandedTx === tx.id ? "rotate-180" : ""}`}
                     />
                   </div>
                 </div>
@@ -901,7 +1257,7 @@ function TransaksiPage({ searchQuery }: { searchQuery: string }) {
                       onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
                     >
                       <div className="space-y-3">
-                        {tx.details.map((detail, idx) => (
+                        {tx.details.map((detail: any, idx: number) => (
                           <div key={idx} className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center shrink-0 p-0.5">
@@ -925,9 +1281,24 @@ function TransaksiPage({ searchQuery }: { searchQuery: string }) {
           ))}
 
           {filteredTransactions.length === 0 && (
-            <div className="text-center py-10 text-[#64748B] text-sm">
-              Tidak ada riwayat transaksi yang cocok dengan pencarian.
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+              className="flex flex-col items-center justify-center py-20 gap-5"
+            >
+              <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #EFF6FF, #DBEAFE)" }}>
+                <Receipt size={36} className="text-[#3B82F6]" strokeWidth={1.5} />
+              </div>
+              <div className="text-center">
+                <p className="text-base font-bold text-[#0F172A]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                  {searchQuery ? "Tidak ada hasil pencarian" : "Belum Ada Riwayat Transaksi"}
+                </p>
+                <p className="text-sm text-[#64748B] mt-1.5">
+                  {searchQuery
+                    ? `Tidak ada transaksi yang cocok dengan "${searchQuery}"`
+                    : "Riwayat pembayaran Anda akan tercatat di sini setelah melakukan transaksi di Sebangku Cafe."}
+                </p>
+              </div>
+            </motion.div>
           )}
         </div>
       </div>
@@ -935,50 +1306,49 @@ function TransaksiPage({ searchQuery }: { searchQuery: string }) {
   );
 }
 
-// ── Statistik Page ──
-function StatistikPage() {
-  // Mock Data for Bar Chart
-  const topGames = [
-    { name: "Mysterium Kids", count: 8, color: "#EF4444", pct: 100 },
-    { name: "Lucky Captain", count: 6, color: "#F59E0B", pct: 75 },
-    { name: "Kraken Attack", count: 5, color: "#8B5CF6", pct: 62.5 },
-    { name: "Sleepy Castle", count: 4, color: "#3B82F6", pct: 50 },
-    { name: "Detective Charlie", count: 3, color: "#F97316", pct: 37.5 }
-  ];
+// ── Statistik Bermain Page ──
+function StatistikPage({ gamesData = [], visitsData = [] }: { gamesData?: any[], visitsData?: any[] }) {
+  const hasData = gamesData.length > 0 || visitsData.length > 0;
 
-  // Mock Data for Achievements
+  // Compute real stats from actual data
+  const totalWins = gamesData.filter(g => g.status === 'WIN').length;
+  const totalSesi = gamesData.length;
+  const winRate = totalSesi > 0 ? Math.round((totalWins / totalSesi) * 100) : 0;
+
+  // Top games from real data
+  const gameCountMap: Record<string, number> = {};
+  gamesData.forEach(g => { if (g.name) gameCountMap[g.name] = (gameCountMap[g.name] || 0) + 1; });
+  const sortedGames = Object.entries(gameCountMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxCount = sortedGames[0]?.[1] || 1;
+  const COLORS = ["#EF4444", "#F59E0B", "#8B5CF6", "#3B82F6", "#F97316"];
+  const topGames = sortedGames.map(([name, count], i) => ({
+    name, count, color: COLORS[i], pct: Math.round((count / maxCount) * 100)
+  }));
+
+  // Achievements — all locked for new users
   const achievements = [
-    { id: 1, name: "First Victory", label: "First Victory", icon: Trophy, earned: true, statusText: "Diraih" },
-    { id: 2, name: "On Fire", label: "On Fire", icon: Flame, earned: true, statusText: "Diraih" },
-    { id: 3, name: "Dice Master", label: "Dice Master", icon: Dices, earned: true, statusText: "Diraih" },
-    { id: 4, name: "Team Player", label: "Team Player", icon: Users, earned: true, statusText: "Diraih" },
-    { id: 5, name: "Speed Runner", label: "Speed Runner", icon: Zap, earned: true, statusText: "Diraih" },
-    { id: 6, name: "Explorer", label: "Explorer", icon: Compass, earned: true, statusText: "Diraih" },
-    
-    { id: 7, name: "Cafe Regular", label: "Cafe Regular", icon: Award, earned: false, current: 24, total: 50 },
-    { id: 8, name: "Legend", label: "Legend", icon: Star, earned: false, current: 24, total: 50 },
-    { id: 9, name: "Grand Strategist", label: "Grand Strategist", icon: Brain, earned: false, current: 12, total: 30 },
-    { id: 10, name: "Night Owl", label: "Night Owl", icon: Moon, earned: false, current: 3, total: 10 },
-    { id: 11, name: "Solo Warrior", label: "Solo Warrior", icon: Shield, earned: false, current: 7, total: 15 },
-    { id: 12, name: "Diamond Member", label: "Diamond Member", icon: Gem, earned: false, current: 48, total: 100 }
+    { id: 1, name: "First Victory", label: "First Victory", icon: Trophy, earned: totalWins >= 1, statusText: "Diraih", current: totalWins, total: 1 },
+    { id: 2, name: "On Fire", label: "On Fire", icon: Flame, earned: false, current: 0, total: 5 },
+    { id: 3, name: "Dice Master", label: "Dice Master", icon: Dices, earned: false, current: 0, total: 10 },
+    { id: 4, name: "Team Player", label: "Team Player", icon: Users, earned: false, current: 0, total: 10 },
+    { id: 5, name: "Speed Runner", label: "Speed Runner", icon: Zap, earned: false, current: 0, total: 5 },
+    { id: 6, name: "Explorer", label: "Explorer", icon: Compass, earned: false, current: 0, total: 8 },
+    { id: 7, name: "Cafe Regular", label: "Cafe Regular", icon: Award, earned: false, current: visitsData.length, total: 50 },
+    { id: 8, name: "Legend", label: "Legend", icon: Star, earned: false, current: visitsData.length, total: 50 },
+    { id: 9, name: "Grand Strategist", label: "Grand Strategist", icon: Brain, earned: false, current: totalSesi, total: 30 },
+    { id: 10, name: "Night Owl", label: "Night Owl", icon: Moon, earned: false, current: 0, total: 10 },
+    { id: 11, name: "Solo Warrior", label: "Solo Warrior", icon: Shield, earned: false, current: 0, total: 15 },
+    { id: 12, name: "Diamond Member", label: "Diamond Member", icon: Gem, earned: false, current: visitsData.length, total: 100 }
   ];
 
-  // Activity Grid (7 days x 10 weeks)
+  // Activity Grid (7 days x 10 weeks) — zeros for new users
   const days = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
-  const activityData = [
-    [1, 1, 2, 1, 1, 1, 2, 1, 1, 1], // Sen
-    [1, 2, 1, 2, 1, 1, 1, 2, 1, 1], // Sel
-    [1, 1, 2, 1, 2, 1, 1, 1, 2, 1], // Rab
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Kam
-    [3, 4, 3, 4, 3, 4, 3, 4, 3, 4], // Jum
-    [4, 4, 3, 4, 4, 3, 4, 4, 3, 4], // Sab
-    [2, 3, 2, 2, 1, 2, 2, 1, 2, 2]  // Min
-  ];
+  const activityData = Array(7).fill(null).map(() => Array(10).fill(0));
 
   const stats = [
-    { id: "total_waktu", value: "48 jam", label: "Total Waktu Bermain", icon: Clock, color: "#3B82F6", bg: "#EFF6FF", sub: "+6h bulan ini" },
-    { id: "total_menang", value: "17 dari 24", label: "Total Menang", icon: Trophy, color: "#3B82F6", bg: "#EFF6FF", sub: "Win rate 70%" },
-    { id: "avg_sesi", value: "1h 54m", label: "Rata-rata Sesi", icon: Calendar, color: "#3B82F6", bg: "#EFF6FF", sub: "Per kunjungan" }
+    { id: "total_waktu", value: `${visitsData.reduce((acc: number, v: any) => acc + (v.waktu_bermain || 0), 0)} jam`, label: "Total Waktu Bermain", icon: Clock, color: "#3B82F6", bg: "#EFF6FF", sub: "Semua sesi" },
+    { id: "total_menang", value: `${totalWins} dari ${totalSesi}`, label: "Total Menang", icon: Trophy, color: "#3B82F6", bg: "#EFF6FF", sub: `Win rate ${winRate}%` },
+    { id: "avg_sesi", value: totalSesi > 0 ? "Terhitung" : "Belum ada", label: "Rata-rata Sesi", icon: Calendar, color: "#3B82F6", bg: "#EFF6FF", sub: "Per kunjungan" }
   ];
 
   return (
@@ -994,7 +1364,37 @@ function StatistikPage() {
         <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">Statistik Bermain</h1>
       </div>
 
-      {/* Top Row: Chart Grid */}
+      {!hasData ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          className="flex flex-col items-center justify-center py-24 gap-5"
+        >
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #EFF6FF, #DBEAFE)" }}>
+            <BarChart2 size={36} className="text-[#3B82F6]" strokeWidth={1.5} />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-bold text-[#0F172A]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+              Belum Ada Statistik
+            </p>
+            <p className="text-sm text-[#64748B] mt-1.5 max-w-xs">
+              Statistik bermain Anda akan muncul secara otomatis setelah Anda mulai bermain di Sebangku Cafe. 🎲
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-4 mt-4">
+            {[
+              { icon: "🎮", label: "Sesi Bermain", value: "0" },
+              { icon: "🏆", label: "Total Menang", value: "0" },
+              { icon: "📅", label: "Kunjungan", value: "0" },
+            ].map(item => (
+              <div key={item.label} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 text-center shadow-sm">
+                <span className="text-2xl">{item.icon}</span>
+                <p className="text-xl font-black text-[#0F172A] mt-1">{item.value}</p>
+                <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mt-0.5">{item.label}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      ) : (<>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Bar Chart: Paling Sering Dimainkan */}
         <div className="lg:col-span-7 bg-white border border-[#E2E8F0] rounded-[24px] p-6 shadow-sm flex flex-col justify-between">
@@ -1007,8 +1407,8 @@ function StatistikPage() {
               <div key={game.name} className="flex items-center gap-4 text-xs">
                 <span className="w-24 font-semibold text-slate-700 truncate">{game.name}</span>
                 <div className="flex-1 bg-slate-50 h-5 rounded-lg overflow-hidden relative border border-slate-100/50">
-                  <div 
-                    className="h-full rounded-r-lg transition-all duration-500" 
+                  <div
+                    className="h-full rounded-r-lg transition-all duration-500"
                     style={{ width: `${game.pct}%`, backgroundColor: game.color }}
                   />
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
@@ -1033,18 +1433,18 @@ function StatistikPage() {
               <circle cx="100" cy="100" r="60" fill="none" stroke="#E2E8F0" strokeWidth="1" />
               <circle cx="100" cy="100" r="40" fill="none" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
               <circle cx="100" cy="100" r="20" fill="none" stroke="#E2E8F0" strokeWidth="1" />
-              
+
               {/* Grid Lines */}
               <line x1="100" y1="20" x2="100" y2="180" stroke="#E2E8F0" strokeWidth="1" />
               <line x1="30" y1="60" x2="170" y2="140" stroke="#E2E8F0" strokeWidth="1" />
               <line x1="30" y1="140" x2="170" y2="60" stroke="#E2E8F0" strokeWidth="1" />
 
               {/* Data polygon */}
-              <polygon 
-                points="100,35 152,70 140,135 100,160 55,125 48,70" 
-                fill="rgba(59, 130, 246, 0.15)" 
-                stroke="#3B82F6" 
-                strokeWidth="2" 
+              <polygon
+                points="100,35 152,70 140,135 100,160 55,125 48,70"
+                fill="rgba(59, 130, 246, 0.15)"
+                stroke="#3B82F6"
+                strokeWidth="2"
               />
 
               {/* Labels */}
@@ -1098,15 +1498,14 @@ function StatistikPage() {
               {activityData.map((row, rIdx) => (
                 <div key={rIdx} className="flex gap-2">
                   {row.map((lvl, cIdx) => (
-                    <div 
-                      key={cIdx} 
-                      className={`flex-1 h-4 rounded transition-all hover:scale-110 cursor-pointer ${
-                        lvl === 1 ? "bg-[#EFF6FF] border border-[#E2E8F0]" :
-                        lvl === 2 ? "bg-[#DBEAFE]" :
-                        lvl === 3 ? "bg-[#93C5FD]" :
-                        lvl === 4 ? "bg-[#3B82F6]" :
-                        "bg-[#1D4ED8]"
-                      }`}
+                    <div
+                      key={cIdx}
+                      className={`flex-1 h-4 rounded transition-all hover:scale-110 cursor-pointer ${lvl === 1 ? "bg-[#EFF6FF] border border-[#E2E8F0]" :
+                          lvl === 2 ? "bg-[#DBEAFE]" :
+                            lvl === 3 ? "bg-[#93C5FD]" :
+                              lvl === 4 ? "bg-[#3B82F6]" :
+                                "bg-[#1D4ED8]"
+                        }`}
                       title={`Week ${10 - cIdx}, Day ${rIdx + 1}`}
                     />
                   ))}
@@ -1132,17 +1531,20 @@ function StatistikPage() {
           </div>
         ))}
       </div>
-
+      </>)}
     </div>
   );
 }
 
 // ── Pesan Page ──
 interface PesanPageProps {
-  userData: typeof MOCK_USER;
+  userData: typeof DEFAULT_USER;
+  onOrderSuccess: () => void;
+  onNotify?: (category: string, text: string, type: string) => void;
+  showToast?: (message: string, type?: ToastType, title?: string) => void;
 }
 
-function PesanPage({ userData }: PesanPageProps) {
+function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageProps) {
   const [searchParams] = useSearchParams();
   const tableId = searchParams.get("table") || "A1";
 
@@ -1165,7 +1567,9 @@ function PesanPage({ userData }: PesanPageProps) {
   const [qrisStatus, setQrisStatus] = useState<"pending" | "success">("pending");
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastOrderId, setLastOrderId] = useState("");
-
+  const [selectedGameForModal, setSelectedGameForModal] = useState<any | null>(null);
+  const [selectedTable, setSelectedTable] = useState("A1");
+  const [selectedPlayers, setSelectedPlayers] = useState(2);
   const categories = useMemo(() => {
     if (activeTab === "f&b") {
       return ["All", "Food", "Drinks", "Snacks"];
@@ -1223,10 +1627,10 @@ function PesanPage({ userData }: PesanPageProps) {
     }
   };
 
-  const processOrder = () => {
+  const processOrder = async () => {
     const now = new Date();
     const orderId = `ORD-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(Math.floor(1000 + Math.random() * 9000))}`;
-    
+
     // Split items into food & beverage and game rental
     const fnbItems = cart.filter(i => i.id.startsWith("p"));
     const rentalItems = cart.filter(i => i.id.startsWith("g"));
@@ -1244,14 +1648,100 @@ function PesanPage({ userData }: PesanPageProps) {
       table: tableId
     };
 
-    // Save to localStorage
+    // Save to localStorage for Kasir (simulated backend events)
     const savedOrders = localStorage.getItem("sebangku_customer_orders");
     const ordersList = savedOrders ? JSON.parse(savedOrders) : [];
     ordersList.unshift(newOrder);
     localStorage.setItem("sebangku_customer_orders", JSON.stringify(ordersList));
-
-    // Dispatch storage event to alert Kasir
     window.dispatchEvent(new Event("storage"));
+
+    // --- Backend Integration: Save to Supabase ---
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("User not authenticated");
+      const userId = authData.user.id;
+
+      // 0. Fetch a valid UUID for table_no to prevent UUID syntax error if cafe_tables uses UUID
+      let realTableId: string | null = null;
+      try {
+        const { data: tableData } = await supabase.from('cafe_tables').select('id').limit(1).single();
+        if (tableData && tableData.id) realTableId = tableData.id;
+      } catch (e) {
+        // ignore if fails
+      }
+
+      // 1. Insert Transaction
+      const { data: txData, error: txError } = await supabase
+        .from('customer_transactions')
+        .insert({
+          user_id: userId,
+          table_no: selectedTable, // use user's selected table
+          players_count: selectedPlayers, // use user's selected players
+          items_summary: cart.map(i => i.name).join(' • '),
+          amount: cartTotal,
+          payment_method: paymentMethod,
+          method: paymentMethod, // legacy column
+          details: cart,
+          date: new Date().toISOString(),
+          items: cart
+        })
+        .select('id')
+        .single();
+        
+      if (txError) throw txError;
+      const txId = txData.id;
+
+      // 2. Insert Game History if there are rentals
+      if (rentalItems.length > 0) {
+        const gameHistoryInserts = rentalItems.map(item => ({
+          user_id: userId,
+          name: item.name, // To fix null value in column "name" constraint
+          game_name: item.name,
+          game_image: item.image,
+          duration: item.duration || "2 Hours",
+          table_no: selectedTable,
+          players_count: selectedPlayers,
+          status: 'PENDING', // PENDING means active session for Kasir
+          rating: 5,
+          comment: "Sesi bermain yang menyenangkan!",
+          date: new Date().toISOString()
+        }));
+
+        const { error: gameError } = await supabase
+          .from('customer_game_history')
+          .insert(gameHistoryInserts);
+          
+        if (gameError) throw gameError;
+
+        // 3. Update Profile Stats
+        let addedHours = 0;
+        rentalItems.forEach(item => {
+          const hMatch = (item.duration || "").match(/(\d+)\s*Hour/i);
+          if (hMatch) addedHours += parseInt(hMatch[1], 10);
+        });
+
+        await supabase
+          .from('customer_profiles')
+          .update({
+            kunjungan: (userData.kunjungan || 0) + 1,
+            waktu_bermain: (userData.waktuJam || 0) + addedHours
+          })
+          .eq('user_id', userId);
+      }
+
+      // Call success callback to refresh parent data (transactions/history)
+      onOrderSuccess();
+      if (onNotify) {
+        onNotify("Pesanan Dibuat", "Pesanan Anda berhasil dikirim dan sedang menunggu konfirmasi Kasir.", "check");
+      }
+      showToast?.("Pesanan berhasil dikirim dan menunggu konfirmasi kasir.", "success", "Pesanan Dibuat!");
+      
+    } catch (err: any) {
+      console.error("Error saving checkout to Supabase", err);
+      showToast?.(`Pemesanan gagal disimpan. Pastikan Anda sudah login. Error: ${err.message || err.toString()}`, "error", "Pemesanan Gagal");
+      return; // Stop the success modal from showing
+    }
+    // -----------------------------------------
 
     setLastOrderId(orderId);
     setCart([]);
@@ -1357,7 +1847,13 @@ function PesanPage({ userData }: PesanPageProps) {
                     Rp {item.price.toLocaleString("id-ID")}
                   </span>
                   <button
-                    onClick={() => addToCart(item)}
+                    onClick={() => {
+                      if (item.id.startsWith("g")) {
+                        setSelectedGameForModal(item);
+                      } else {
+                        addToCart(item);
+                      }
+                    }}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-bold transition-all shadow cursor-pointer"
                   >
                     <Plus size={12} /> Tambah
@@ -1373,6 +1869,9 @@ function PesanPage({ userData }: PesanPageProps) {
             Tidak ada menu yang sesuai pencarian.
           </div>
         )}
+
+
+
       </div>
 
       {/* Cart Summary Panel */}
@@ -1448,6 +1947,27 @@ function PesanPage({ userData }: PesanPageProps) {
 
         {cart.length > 0 && (
           <div className="p-4 border-t border-[#E2E8F0] bg-[#FAFAFC] rounded-b-[24px]">
+            <div className="flex gap-3 mb-4">
+              <div className="flex-1">
+                <label className="text-[10px] font-black text-[#94A3B8] uppercase block mb-1">Pilih Meja</label>
+                <select 
+                  value={selectedTable} 
+                  onChange={(e) => setSelectedTable(e.target.value)}
+                  className="w-full bg-white border border-[#E2E8F0] rounded-xl px-3 py-2 text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#3B82F6]"
+                >
+                  {["A1", "A2", "B1", "B2", "C1", "C2"].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="w-[100px]">
+                <label className="text-[10px] font-black text-[#94A3B8] uppercase block mb-1">Jumlah Pemain</label>
+                <input 
+                  type="number" min="1" max="10" 
+                  value={selectedPlayers} 
+                  onChange={(e) => setSelectedPlayers(parseInt(e.target.value) || 1)}
+                  className="w-full bg-white border border-[#E2E8F0] rounded-xl px-3 py-2 text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#3B82F6]"
+                />
+              </div>
+            </div>
             <div className="mb-4">
               <label className="text-[10px] font-black text-[#94A3B8] uppercase block mb-2">Metode Pembayaran</label>
               <div className="grid grid-cols-2 gap-2">
@@ -1603,16 +2123,107 @@ function PesanPage({ userData }: PesanPageProps) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Board Game Detail & Tutorial Modal */}
+      <AnimatePresence>
+        {selectedGameForModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col relative"
+            >
+              {/* Header Image */}
+              <div className="relative h-48 w-full bg-slate-100">
+                <img
+                  src={selectedGameForModal.image}
+                  alt={selectedGameForModal.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                <button
+                  onClick={() => setSelectedGameForModal(null)}
+                  className="absolute top-4 right-4 w-8 h-8 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors cursor-pointer z-10"
+                >
+                  <X size={16} />
+                </button>
+                <div className="absolute bottom-4 left-5 right-5">
+                  <span className="text-[10px] bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded font-black uppercase tracking-wider mb-1.5 inline-block">
+                    {selectedGameForModal.category}
+                  </span>
+                  <h3 className="text-xl font-black text-white leading-tight drop-shadow-md">
+                    {selectedGameForModal.name}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-5 flex flex-col gap-4">
+                <div>
+                  <h4 className="text-xs font-bold text-[#64748B] uppercase tracking-wider mb-1">Deskripsi Game</h4>
+                  <p className="text-sm text-[#0F172A] leading-relaxed">
+                    {selectedGameForModal.description || "Sebuah board game yang sangat seru untuk dimainkan bersama teman dan keluarga. Disewakan dengan harga terjangkau."}
+                  </p>
+                </div>
+
+                <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4 flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-red-100 text-red-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <PlayCircle size={20} fill="currentColor" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[#1E3A8A]">Tutorial Cara Bermain</h4>
+                      <p className="text-[11px] text-[#3B82F6] leading-snug mt-0.5">
+                        Belum tahu cara mainnya? Jangan khawatir, tonton video tutorial singkat ini sebelum mulai bermain.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={selectedGameForModal.tutorialLink || `https://www.youtube.com/results?search_query=how+to+play+${selectedGameForModal.name}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-colors cursor-pointer shadow-sm"
+                  >
+                    Tonton di YouTube
+                  </a>
+                </div>
+
+                <div className="flex items-center justify-between mt-2 pt-4 border-t border-[#E2E8F0]">
+                  <div>
+                    <p className="text-[10px] font-bold text-[#94A3B8] uppercase">Harga Sewa</p>
+                    <p className="text-lg font-black text-[#3B82F6]">
+                      Rp {selectedGameForModal.price.toLocaleString("id-ID")}
+                      <span className="text-xs text-[#64748B] font-medium"> / 2 jam</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      addToCart(selectedGameForModal);
+                      setSelectedGameForModal(null);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Plus size={16} /> Sewa Sekarang
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 // ── Pesanan Page ──
-function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
+function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFAULT_USER, onRefresh?: () => void, showToast?: (msg: string, type?: ToastType, title?: string) => void }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [activeSessions, setActiveSessions] = useState<any[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Print receipt states
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -1623,37 +2234,86 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
   const [comment, setComment] = useState("");
   const [suggestion, setSuggestion] = useState("");
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [gameStatus, setGameStatus] = useState<"WIN" | "LOSE">("WIN");
 
-  const loadOrders = () => {
-    const saved = localStorage.getItem("sebangku_customer_orders");
-    if (saved) {
-      const list = JSON.parse(saved);
-      // Filter orders by customer name
-      const filtered = list.filter((o: any) => o.customerName === userData.name);
-      setOrders(filtered);
+  const loadOrders = async () => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+      const userId = authData.user.id;
+
+      const { data, error } = await supabase
+        .from('customer_transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        const mapped = data.map((tx: any) => ({
+          id: tx.id,
+          customerName: userData.name,
+          items: tx.details?.filter((i: any) => i.id?.startsWith("p")) || [],
+          rentals: tx.details?.filter((i: any) => i.id?.startsWith("g")) || [],
+          totalAmount: tx.amount,
+          status: tx.status || "paid",
+          createdAt: tx.created_at,
+          table: (tx.table_no && tx.table_no.length > 10) ? "A1" : (tx.table_no || "A1"),
+          players: tx.players_count || 1
+        }));
+        setOrders(mapped);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const loadActiveSessions = () => {
-    const saved = localStorage.getItem("sebangku_sessions");
-    if (saved) {
-      const list = JSON.parse(saved);
-      const filtered = list.filter((s: any) => s.name === userData.name && s.secondsLeft > 0);
-      setActiveSessions(filtered);
-    } else {
-      setActiveSessions([]);
+  const loadActiveSessions = async () => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+      const userId = authData.user.id;
+
+      const { data, error } = await supabase
+        .from('customer_game_history')
+        .select('*')
+        .eq('user_id', userId)
+        .in('status', ['PENDING', 'in_progress']) // Show both pending and active
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        const mapped = data.map((s: any) => {
+          let totalSeconds = 7200;
+          if (s.duration) {
+            const hMatch = s.duration.match(/(\d+)\s*Hour/i);
+            if (hMatch) totalSeconds = parseInt(hMatch[1]) * 3600;
+          }
+          const elapsed = Math.floor((Date.now() - new Date(s.created_at).getTime()) / 1000);
+          const secondsLeft = Math.max(0, totalSeconds - elapsed);
+          
+          return {
+            id: s.id,
+            name: userData.name,
+            table: (s.table_no && s.table_no.length > 10) ? "A1" : (s.table_no || "A1"),
+            game: s.game_name,
+            duration: s.duration,
+            secondsLeft: secondsLeft,
+            status: s.status
+          };
+        });
+        setActiveSessions(mapped);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
   useEffect(() => {
     loadOrders();
     loadActiveSessions();
-    // Storage event sync
-    const handleStorage = () => {
+    const intervalData = setInterval(() => {
       loadOrders();
       loadActiveSessions();
-    };
-    window.addEventListener("storage", handleStorage);
+    }, 5000); // Polling every 5 seconds for real-time updates
 
     // Live countdown timer syncing with localStorage
     const interval = setInterval(() => {
@@ -1685,38 +2345,43 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
     }, 1000);
 
     return () => {
-      window.removeEventListener("storage", handleStorage);
+      clearInterval(intervalData);
       clearInterval(interval);
     };
   }, [userData.name]);
 
-  const handleMarkComplete = (order: any) => {
-    const saved = localStorage.getItem("sebangku_customer_orders");
-    if (saved) {
-      const list = JSON.parse(saved);
-      const updated = list.map((o: any) => {
-        if (o.id === order.id) {
-          return { ...o, status: "completed" };
-        }
-        return o;
-      });
-      localStorage.setItem("sebangku_customer_orders", JSON.stringify(updated));
-      setOrders(updated.filter((o: any) => o.customerName === userData.name));
+  const handleClearOrders = async () => {
+    setIsClearing(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Belum login");
+      const { error } = await supabase
+        .from('customer_transactions')
+        .delete()
+        .eq('user_id', authData.user.id)
+        .eq('status', 'completed');
+      if (error) throw error;
+      setShowClearConfirm(false);
+      showToast?.("Riwayat pesanan yang selesai berhasil dihapus.", "success", "Riwayat Dihapus");
+      loadOrders();
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      showToast?.("Gagal menghapus riwayat pesanan: " + err.message, "error", "Terjadi Kesalahan");
+    }
+    setIsClearing(false);
+  };
 
-      // Also mark any sessions linked to this table/name complete (set to 0)
-      const savedSessions = localStorage.getItem("sebangku_sessions");
-      if (savedSessions) {
-        const sessionsList = JSON.parse(savedSessions);
-        const updatedSessions = sessionsList.map((s: any) => {
-          if (s.name === userData.name && s.table === order.table) {
-            return { ...s, secondsLeft: 0 };
-          }
-          return s;
-        });
-        localStorage.setItem("sebangku_sessions", JSON.stringify(updatedSessions));
-      }
+  const handleMarkComplete = async (order: any) => {
+    try {
+      const { error } = await supabase
+        .from('customer_transactions')
+        .update({ status: 'completed' })
+        .eq('id', order.id);
 
-      window.dispatchEvent(new Event("storage"));
+      if (error) throw error;
+
+      // Optimistically update UI
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'completed' } : o));
 
       // Trigger Review Modal
       setSelectedOrder(order);
@@ -1724,7 +2389,11 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
       setComment("");
       setSuggestion("");
       setPhotoBase64(null);
+      setGameStatus("WIN");
       setShowReviewModal(true);
+    } catch (e) {
+      console.error("Gagal menandai selesai", e);
+      showToast?.("Gagal memperbarui status pesanan. Coba lagi.", "error", "Terjadi Kesalahan");
     }
   };
 
@@ -1732,7 +2401,7 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 500 * 1024) {
-        alert("Ukuran foto melebihi batas 500KB!");
+        showToast?.("Ukuran foto melebihi batas 500KB. Pilih foto yang lebih kecil.", "warning", "Foto Terlalu Besar");
         return;
       }
       const reader = new FileReader();
@@ -1743,9 +2412,22 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
     }
   };
 
-  const submitReview = (e: React.FormEvent) => {
+  const submitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
+
+    // Update customer_game_history with the review details and Win/Lose status
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user) {
+        await supabase.from('customer_game_history')
+          .update({ rating: rating, comment: comment, status: gameStatus })
+          .eq('user_id', authData.user.id)
+          .in('status', ['in_progress', 'PENDING']);
+      }
+    } catch (err) {
+      console.error("Failed to update game history with review:", err);
+    }
 
     // Collect item names from order
     const itemNames = [
@@ -1776,7 +2458,11 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
 
     setShowReviewModal(false);
     setSelectedOrder(null);
-    alert("Terima kasih atas ulasan Anda!");
+    
+    // Refresh the history data so UI updates immediately
+    if (onRefresh) onRefresh();
+    
+    showToast?.("Ulasan Anda berhasil dikirim. Terima kasih!", "success", "Ulasan Terkirim! 🎉");
   };
 
   const getStatusBadge = (status: string) => {
@@ -1811,9 +2497,28 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8 max-w-5xl mx-auto w-full text-left font-sans">
-      <div>
-        <h1 className="text-2xl font-black text-[#0F172A]">Pesanan Saya</h1>
-        <p className="text-xs text-[#64748B] mt-0.5">Kelola status pemesanan, lihat sisa sesi board game, cetak bukti bayar, dan beri ulasan.</p>
+      <ConfirmClearModal
+        isOpen={showClearConfirm}
+        title="Hapus Riwayat Pesanan Selesai?"
+        description="Semua pesanan yang telah selesai akan dihapus dari riwayat Anda. Pesanan aktif tidak akan terpengaruh."
+        onConfirm={handleClearOrders}
+        onCancel={() => setShowClearConfirm(false)}
+        isLoading={isClearing}
+      />
+
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-[#0F172A]">Pesanan Saya</h1>
+          <p className="text-xs text-[#64748B] mt-0.5">Kelola status pemesanan, lihat sisa sesi board game, cetak bukti bayar, dan beri ulasan.</p>
+        </div>
+        {orders.some(o => o.status === 'completed') && (
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer shrink-0 mt-1"
+          >
+            <Trash2 size={13} /> Hapus Riwayat
+          </button>
+        )}
       </div>
 
       {/* ── Active Sessions Section ── */}
@@ -1833,20 +2538,18 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
                       <h4 className="text-sm font-black text-[#0F172A]">{session.game}</h4>
                       <p className="text-[10px] text-[#64748B] font-semibold mt-0.5">Meja: {session.table} · Paket: {session.duration}</p>
                     </div>
-                    <span className={`text-xs font-black px-2 py-1 rounded-xl tracking-wider ${
-                      isEndingSoon ? "bg-red-50 text-red-500 border border-red-100 animate-pulse" : "bg-emerald-50 text-emerald-500 border border-emerald-100"
-                    }`}>
+                    <span className={`text-xs font-black px-2 py-1 rounded-xl tracking-wider ${isEndingSoon ? "bg-red-50 text-red-500 border border-red-100 animate-pulse" : "bg-emerald-50 text-emerald-500 border border-emerald-100"
+                      }`}>
                       {formatTime(session.secondsLeft)}
                     </span>
                   </div>
 
                   {/* Progress Bar */}
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-1000 ${
-                        isEndingSoon ? "bg-red-500" : "bg-emerald-500"
-                      }`} 
-                      style={{ width: `${pct}%` }} 
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ${isEndingSoon ? "bg-red-500" : "bg-emerald-500"
+                        }`}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
 
@@ -1972,6 +2675,33 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
                     ))}
                   </div>
                 </div>
+
+                {/* Game Status Win/Lose Toggle */}
+                {selectedOrder?.rentals?.length > 0 && (
+                  <div className="flex flex-col items-center gap-1.5 mb-2">
+                    <span className="text-[10px] font-bold text-[#94A3B8] uppercase block">Hasil Bermain (Opsional)</span>
+                    <div className="flex bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl overflow-hidden p-1 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setGameStatus("WIN")}
+                        className={`flex-1 py-1.5 px-4 text-xs font-bold rounded-lg transition-all ${
+                          gameStatus === "WIN" ? "bg-emerald-500 text-white shadow-sm" : "text-[#64748B] hover:bg-white"
+                        }`}
+                      >
+                        Menang
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGameStatus("LOSE")}
+                        className={`flex-1 py-1.5 px-4 text-xs font-bold rounded-lg transition-all ${
+                          gameStatus === "LOSE" ? "bg-red-500 text-white shadow-sm" : "text-[#64748B] hover:bg-white"
+                        }`}
+                      >
+                        Kalah
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Comment textarea */}
                 <div>
@@ -2102,7 +2832,7 @@ function PesananPage({ userData }: { userData: typeof MOCK_USER }) {
                   <span>Meja: {receiptOrder.table}</span>
                 </div>
                 <div className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider">ID: {receiptOrder.id}</div>
-                
+
                 <div className="w-full border-t border-[#F1F5F9] my-2" />
 
                 {receiptOrder.items?.map((it: any, idx: number) => (
@@ -2237,7 +2967,221 @@ export default function CustomerPage() {
   ]);
 
   // Real-time interactive user data state synced across layout & pages
-  const [userData, setUserData] = useState(MOCK_USER);
+  const [userData, setUserData] = useState(DEFAULT_USER);
+  const [historyGames, setHistoryGames] = useState<any[]>([]);
+  const [visits, setVisits] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+  // ─ Global Toast ─
+  const { toasts, showToast, removeToast } = useToast();
+
+  const handleNotify = useCallback((category: string, text: string, type: string) => {
+    const newNotif = {
+      id: Date.now(),
+      category,
+      text,
+      time: "Baru saja",
+      isUnread: true,
+      type
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    setNotifCount(c => c + 1);
+  }, []);
+
+  const fetchCustomerData = useCallback(async () => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+      const userId = authData.user.id;
+      
+      // Fetch profile
+      const { data: profile, error: profileErr } = await supabase
+        .from('customer_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+        
+      if (profile && !profileErr) {
+        setUserData(prev => ({
+          ...prev,
+          firstName: profile.nama_depan || prev.firstName,
+          lastName: profile.nama_belakang || prev.lastName,
+          name: `${profile.nama_depan || ''} ${profile.nama_belakang || ''}`.trim() || prev.name,
+          phone: profile.phone || prev.phone,
+          birthDate: profile.tanggal_lahir || prev.birthDate,
+          status: profile.status || prev.status,
+          kunjungan: profile.kunjungan !== undefined ? profile.kunjungan : prev.kunjungan,
+          waktuJam: profile.waktu_bermain !== undefined ? profile.waktu_bermain : prev.waktuJam,
+          winRate: profile.win_rate !== undefined ? profile.win_rate : prev.winRate,
+          level: profile.level !== undefined ? profile.level : prev.level,
+          memberSince: profile.member_sejak || prev.memberSince,
+        }));
+      }
+
+      // Fetch transactions
+      const { data: txData } = await supabase
+        .from('customer_transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (txData) {
+        setTransactions(txData.map((tx: any) => ({
+          id: tx.id,
+          date: new Date(tx.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB',
+          items: tx.items_summary || "",
+          amount: tx.amount || 0,
+          method: tx.payment_method || "",
+          details: tx.details || []
+        })));
+        
+        // Also map to visits (since visits are basically transactions)
+        // Or if we want specific game visits, we map from game history. 
+        let totalBelanja = 0;
+        let totalTransaksi = txData.length;
+        
+        setVisits(txData.map((tx: any) => {
+          totalBelanja += tx.amount || 0;
+          const rental = tx.details?.find((i: any) => i.id?.startsWith("g"));
+          return {
+            id: tx.id,
+            date: new Date(tx.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+            time: new Date(tx.created_at).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+            gameName: rental ? rental.name : "Kunjungan Cafe", 
+            gameImage: rental ? rental.image : "", 
+            duration: rental ? (rental.duration || "2 Hours") : "1h 00m",
+            table: (tx.table_no && tx.table_no.length > 10) ? "A1" : (tx.table_no || "A1"), 
+            friends: tx.players_count || 1,
+            spending: tx.amount || 0
+          };
+        }));
+        
+        const rataRataKunjungan = totalTransaksi > 0 ? Math.round(totalBelanja / totalTransaksi) : 0;
+        setUserData(prev => ({
+          ...prev,
+          totalBelanjaFNB: totalBelanja,
+          totalTransaksi: totalTransaksi,
+          rataRataKunjungan: rataRataKunjungan
+        }));
+      }
+
+      // Fetch game history
+      const { data: gameData } = await supabase
+        .from('customer_game_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (gameData) {
+        let totalMenang = 0;
+        let gameDicoba = new Set<string>();
+        let gameCounts: Record<string, { count: number, image: string }> = {};
+        
+        const mappedGames = gameData.map((g: any) => {
+          if (g.status === "WIN") totalMenang++;
+          if (g.game_name) {
+            gameDicoba.add(g.game_name);
+            const currentImg = g.game_image || "";
+            if (!gameCounts[g.game_name]) {
+              gameCounts[g.game_name] = { count: 1, image: currentImg };
+            } else {
+              gameCounts[g.game_name].count++;
+              if (currentImg && !gameCounts[g.game_name].image) gameCounts[g.game_name].image = currentImg;
+            }
+          }
+          return {
+            id: g.id,
+            name: g.game_name || "",
+            image: g.game_image || "",
+            date: new Date(g.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+            duration: g.duration || "1h",
+            table: (g.table_no && g.table_no.length > 10) ? "A1" : (g.table_no || "A1"),
+            players: g.players_count || 1,
+            status: g.status || "WIN",
+            rating: g.rating || 5,
+            comment: g.comment || "Seru banget!"
+          };
+        });
+        
+        setHistoryGames(mappedGames);
+        
+        const sortedGames = Object.entries(gameCounts)
+          .sort((a,b) => b[1].count - a[1].count)
+          .slice(0, 3)
+          .map((entry, index) => ({
+            rank: index + 1,
+            name: entry[0],
+            image: entry[1].image
+          }));
+        
+        let favorit = sortedGames.length > 0 ? sortedGames[0].name : "Belum ada";
+        
+        setUserData(prev => ({
+          ...prev,
+          totalMenang: totalMenang,
+          gameDicoba: gameDicoba.size,
+          gameFavorit: favorit || prev.gameFavorit,
+          favGames: sortedGames.length > 0 ? sortedGames : prev.favGames,
+          streakHari: txData?.length ? new Set(txData.map((t:any) => new Date(t.created_at).toDateString())).size : prev.streakHari
+        }));
+      }
+
+    } catch (err) {
+      console.error("Failed to fetch customer data:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCustomerData();
+
+    // Subscribe to transaction updates for real-time notifications
+    const channel = supabase
+      .channel('customer-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customer_transactions' }, (payload) => {
+        if (payload.new.status === 'in_progress') {
+          const newNotif = {
+            id: Date.now(),
+            category: "Pesanan Diproses",
+            text: `Pesanan Anda sedang diproses oleh kasir.`,
+            time: "Baru saja",
+            isUnread: true,
+            type: "check"
+          };
+          setNotifications(prev => [newNotif, ...prev]);
+          setNotifCount(c => c + 1);
+        } else if (payload.new.status === 'completed') {
+          const newNotif = {
+            id: Date.now(),
+            category: "Pesanan Selesai",
+            text: `Pesanan Anda telah selesai.`,
+            time: "Baru saja",
+            isUnread: true,
+            type: "check"
+          };
+          setNotifications(prev => [newNotif, ...prev]);
+          setNotifCount(c => c + 1);
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customer_game_history' }, (payload) => {
+         if (payload.new.status === 'in_progress') {
+          const newNotif = {
+            id: Date.now(),
+            category: "Sesi Bermain Dimulai",
+            text: `Kasir telah memulai sesi bermain Anda untuk game ${payload.new.game_name}.`,
+            time: "Baru saja",
+            isUnread: true,
+            type: "game"
+          };
+          setNotifications(prev => [newNotif, ...prev]);
+          setNotifCount(c => c + 1);
+         }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchCustomerData]);
 
   const tableId = searchParams.get("table") || "T01";
 
@@ -2261,19 +3205,21 @@ export default function CustomerPage() {
 
   const renderPage = () => {
     switch (activePage) {
-      case "profil": return <ProfilPage userData={userData} setUserData={setUserData} />;
-      case "pesan": return <PesanPage userData={userData} />;
-      case "pesanan": return <PesananPage userData={userData} />;
-      case "history": return <HistoryPage searchQuery={searchQuery} />;
-      case "kunjungan": return <KunjunganPage searchQuery={searchQuery} />;
-      case "transaksi": return <TransaksiPage searchQuery={searchQuery} />;
-      case "statistik": return <StatistikPage />;
-      default: return <ProfilPage userData={userData} setUserData={setUserData} />;
+      case "profil": return <ProfilPage userData={userData} setUserData={setUserData} showToast={showToast} />;
+      case "pesan": return <PesanPage userData={userData} onOrderSuccess={fetchCustomerData} onNotify={handleNotify} showToast={showToast} />;
+      case "pesanan": return <PesananPage userData={userData} onRefresh={fetchCustomerData} showToast={showToast} />;
+      case "history": return <HistoryPage searchQuery={searchQuery} data={historyGames} onClearHistory={fetchCustomerData} showToast={showToast} />;
+      case "kunjungan": return <KunjunganPage searchQuery={searchQuery} data={visits} onClearHistory={fetchCustomerData} showToast={showToast} />;
+      case "transaksi": return <TransaksiPage searchQuery={searchQuery} data={transactions} userData={userData} onClearHistory={fetchCustomerData} showToast={showToast} />;
+      case "statistik": return <StatistikPage gamesData={historyGames} visitsData={visits} />;
+      default: return <ProfilPage userData={userData} setUserData={setUserData} showToast={showToast} />;
     }
   };
 
   return (
     <div className="min-h-screen flex bg-[#F8FAFC]" style={{ fontFamily: "'Poppins', sans-serif" }}>
+      {/* ── TOAST NOTIFICATIONS ── */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       {/* ── DESKTOP SIDEBAR ──────────────────────────────────────── */}
       <aside
@@ -2458,7 +3404,7 @@ export default function CustomerPage() {
 
             {/* Notification bell */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => {
                   setShowNotifications(!showNotifications);
                   setNotifCount(0); // Clear badge on open
@@ -2483,7 +3429,7 @@ export default function CustomerPage() {
                   >
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3">
                       <span className="font-bold text-sm text-[#0F172A]">Notifikasi</span>
-                      <button 
+                      <button
                         onClick={() => {
                           setNotifications([]);
                           setNotifCount(0);
@@ -2493,11 +3439,11 @@ export default function CustomerPage() {
                         Hapus Semua
                       </button>
                     </div>
-                    
+
                     <div className="space-y-1 max-h-72 overflow-y-auto pr-0.5">
                       {notifications.map(n => (
-                        <div 
-                          key={n.id} 
+                        <div
+                          key={n.id}
                           className="flex gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer relative"
                           onClick={() => {
                             setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, isUnread: false } : item));
@@ -2516,7 +3462,7 @@ export default function CustomerPage() {
                               <Check size={16} />
                             )}
                           </div>
-                          
+
                           {/* Content */}
                           <div className="flex-1 min-w-0 pr-2">
                             <p className="text-xs font-bold text-[#0F172A]">{n.category}</p>

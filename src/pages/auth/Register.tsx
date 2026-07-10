@@ -186,12 +186,38 @@ export default function RegisterPage() {
         }
       });
 
-      setIsLoading(false);
-
       if (error) {
+        setIsLoading(false);
         setGeneralError("Registrasi gagal: " + error.message);
         return;
       }
+
+      if (data.user) {
+        const parts = name.trim().split(" ");
+        const firstName = parts[0];
+        const lastName = parts.slice(1).join(" ");
+        
+        const { error: profileError } = await supabase
+          .from('customer_profiles')
+          .insert({
+            user_id: data.user.id,
+            nama_depan: firstName,
+            nama_belakang: lastName,
+            phone: phone,
+            level: 1,
+            kunjungan: 0,
+            waktu_bermain: 0,
+            win_rate: 0,
+            status: "Active · Regular",
+            member_sejak: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+          });
+          
+        if (profileError) {
+          console.error("Gagal membuat profil customer:", profileError);
+        }
+      }
+
+      setIsLoading(false);
 
       // Tampilkan layar sukses
       setRegisteredName(name.trim().split(" ")[0]);

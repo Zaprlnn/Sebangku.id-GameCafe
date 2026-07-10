@@ -5,8 +5,8 @@ import {
 } from "recharts";
 import { useNavigate, useLocation } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  LayoutDashboard, Dices, Utensils, TrendingUp, Settings, LogOut, 
+import {
+  LayoutDashboard, Dices, Utensils, TrendingUp, Settings, LogOut,
   Menu, X, TrendingDown, Users, ShoppingBag, UserPlus,
   ChevronRight, Plus, Edit2, Trash2,
   ToggleLeft, ToggleRight, Power, ImageIcon, Coffee, Package, Save,
@@ -15,6 +15,7 @@ import {
 
 import sebangkuLogo from "../../assets/images/logo_sebangku_cafee.png";
 import ownerPhoto from "../../assets/images/owner_photo.png";
+import { BOARDGAMES_SEED } from "../../data/boardgames_seed";
 
 // Import Board Game Images for Top Games
 import mystKidsImg from "../../assets/images/Mysterium Kids.png";
@@ -36,80 +37,80 @@ const sidebarMenu = [
 // ─────────────────────────────────────────────────────────────────────────────
 // -- Revenue trend data keyed by ISO date --
 const ALL_TREND_DATA = [
-  { date:"2026-06-01", day:"1 Jun",  fnb:  95000, rental:  60000 },
-  { date:"2026-06-02", day:"2 Jun",  fnb: 110000, rental:  75000 },
-  { date:"2026-06-03", day:"3 Jun",  fnb: 130000, rental: 100000 },
-  { date:"2026-06-04", day:"4 Jun",  fnb: 120000, rental:  90000 },
-  { date:"2026-06-05", day:"5 Jun",  fnb: 150000, rental: 120000 },
-  { date:"2026-06-06", day:"6 Jun",  fnb: 175000, rental: 145000 },
-  { date:"2026-06-07", day:"7 Jun",  fnb: 160000, rental: 130000 },
-  { date:"2026-06-08", day:"8 Jun",  fnb: 140000, rental: 110000 },
-  { date:"2026-06-09", day:"9 Jun",  fnb: 200000, rental: 160000 },
-  { date:"2026-06-10", day:"10 Jun", fnb: 185000, rental: 170000 },
-  { date:"2026-06-11", day:"11 Jun", fnb: 175000, rental: 180000 },
-  { date:"2026-06-12", day:"12 Jun", fnb: 165000, rental: 190000 },
-  { date:"2026-06-13", day:"13 Jun", fnb: 155000, rental: 200000 },
-  { date:"2026-06-14", day:"14 Jun", fnb: 195000, rental: 185000 },
-  { date:"2026-06-15", day:"15 Jun", fnb: 210000, rental: 190000 },
-  { date:"2026-06-16", day:"16 Jun", fnb: 180000, rental: 220000 },
+  { date: "2026-06-01", day: "1 Jun", fnb: 95000, rental: 60000 },
+  { date: "2026-06-02", day: "2 Jun", fnb: 110000, rental: 75000 },
+  { date: "2026-06-03", day: "3 Jun", fnb: 130000, rental: 100000 },
+  { date: "2026-06-04", day: "4 Jun", fnb: 120000, rental: 90000 },
+  { date: "2026-06-05", day: "5 Jun", fnb: 150000, rental: 120000 },
+  { date: "2026-06-06", day: "6 Jun", fnb: 175000, rental: 145000 },
+  { date: "2026-06-07", day: "7 Jun", fnb: 160000, rental: 130000 },
+  { date: "2026-06-08", day: "8 Jun", fnb: 140000, rental: 110000 },
+  { date: "2026-06-09", day: "9 Jun", fnb: 200000, rental: 160000 },
+  { date: "2026-06-10", day: "10 Jun", fnb: 185000, rental: 170000 },
+  { date: "2026-06-11", day: "11 Jun", fnb: 175000, rental: 180000 },
+  { date: "2026-06-12", day: "12 Jun", fnb: 165000, rental: 190000 },
+  { date: "2026-06-13", day: "13 Jun", fnb: 155000, rental: 200000 },
+  { date: "2026-06-14", day: "14 Jun", fnb: 195000, rental: 185000 },
+  { date: "2026-06-15", day: "15 Jun", fnb: 210000, rental: 190000 },
+  { date: "2026-06-16", day: "16 Jun", fnb: 180000, rental: 220000 },
 ];
 
 // -- Transactions keyed by ISO date --
 const ALL_TRANSACTIONS = [
-  { date:"2026-06-16", label:"16 Jun", customer:"Andi S.",    items:"Mie Goreng + Pandemic 2h",  rental:"Rp 70.000",  total:155000, payment:"QRIS" },
-  { date:"2026-06-16", label:"16 Jun", customer:"Budi L.",    items:"Kopi + Es Teh + Catan 1h",  rental:"Rp 35.000",  total: 55000, payment:"Cash" },
-  { date:"2026-06-15", label:"15 Jun", customer:"Citra D.",   items:"Nasi Goreng + Snack",        rental:"",           total: 37000, payment:"Cash" },
-  { date:"2026-06-15", label:"15 Jun", customer:"Dika P.",    items:"Es Kopi + Wingspan 3h",      rental:"Rp 105.000", total:125000, payment:"Transfer" },
-  { date:"2026-06-14", label:"14 Jun", customer:"Eva S.",     items:"Full package",                rental:"Rp 40.000",  total: 90000, payment:"QRIS" },
-  { date:"2026-06-14", label:"14 Jun", customer:"Fajar R.",   items:"Snack + Kopi Hitam",          rental:"",           total: 28000, payment:"Cash" },
-  { date:"2026-06-13", label:"13 Jun", customer:"Gita M.",    items:"Es Kopi Susu + Catan 2h",    rental:"Rp 70.000",  total: 95000, payment:"QRIS" },
-  { date:"2026-06-13", label:"13 Jun", customer:"Hendra K.",  items:"Mie Goreng + Pandemic 3h",   rental:"Rp 105.000", total:180000, payment:"Transfer" },
-  { date:"2026-06-10", label:"10 Jun", customer:"Ika W.",     items:"Nasi Goreng + Wingspan 1h",  rental:"Rp 35.000",  total: 65000, payment:"Cash" },
-  { date:"2026-06-10", label:"10 Jun", customer:"Joko S.",    items:"Kopi Hitam",                  rental:"",           total: 15000, payment:"Cash" },
-  { date:"2026-06-07", label:"7 Jun",  customer:"Kartika P.", items:"Full package",                rental:"Rp 70.000",  total:120000, payment:"QRIS" },
-  { date:"2026-06-07", label:"7 Jun",  customer:"Lutfi A.",   items:"Snack Mix + Ticket 2h",       rental:"Rp 70.000",  total: 98000, payment:"Transfer" },
+  { date: "2026-06-16", label: "16 Jun", customer: "Andi S.", items: "Mie Goreng + Pandemic 2h", rental: "Rp 70.000", total: 155000, payment: "QRIS" },
+  { date: "2026-06-16", label: "16 Jun", customer: "Budi L.", items: "Kopi + Es Teh + Catan 1h", rental: "Rp 35.000", total: 55000, payment: "Cash" },
+  { date: "2026-06-15", label: "15 Jun", customer: "Citra D.", items: "Nasi Goreng + Snack", rental: "", total: 37000, payment: "Cash" },
+  { date: "2026-06-15", label: "15 Jun", customer: "Dika P.", items: "Es Kopi + Wingspan 3h", rental: "Rp 105.000", total: 125000, payment: "Transfer" },
+  { date: "2026-06-14", label: "14 Jun", customer: "Eva S.", items: "Full package", rental: "Rp 40.000", total: 90000, payment: "QRIS" },
+  { date: "2026-06-14", label: "14 Jun", customer: "Fajar R.", items: "Snack + Kopi Hitam", rental: "", total: 28000, payment: "Cash" },
+  { date: "2026-06-13", label: "13 Jun", customer: "Gita M.", items: "Es Kopi Susu + Catan 2h", rental: "Rp 70.000", total: 95000, payment: "QRIS" },
+  { date: "2026-06-13", label: "13 Jun", customer: "Hendra K.", items: "Mie Goreng + Pandemic 3h", rental: "Rp 105.000", total: 180000, payment: "Transfer" },
+  { date: "2026-06-10", label: "10 Jun", customer: "Ika W.", items: "Nasi Goreng + Wingspan 1h", rental: "Rp 35.000", total: 65000, payment: "Cash" },
+  { date: "2026-06-10", label: "10 Jun", customer: "Joko S.", items: "Kopi Hitam", rental: "", total: 15000, payment: "Cash" },
+  { date: "2026-06-07", label: "7 Jun", customer: "Kartika P.", items: "Full package", rental: "Rp 70.000", total: 120000, payment: "QRIS" },
+  { date: "2026-06-07", label: "7 Jun", customer: "Lutfi A.", items: "Snack Mix + Ticket 2h", rental: "Rp 70.000", total: 98000, payment: "Transfer" },
 ];
 
 const topSellingItemsMonth = [
   { name: "Es Kopi Susu", value: 98 },
-  { name: "Mie Goreng",   value: 85 },
-  { name: "Kopi Hitam",   value: 72 },
-  { name: "Snack Mix",    value: 58 },
-  { name: "Nasi Goreng",  value: 44 },
+  { name: "Mie Goreng", value: 85 },
+  { name: "Kopi Hitam", value: 72 },
+  { name: "Snack Mix", value: 58 },
+  { name: "Nasi Goreng", value: 44 },
 ];
 const topSellingItemsWeek = [
   { name: "Es Kopi Susu", value: 24 },
-  { name: "Kopi Hitam",   value: 20 },
-  { name: "Mie Goreng",   value: 18 },
-  { name: "Snack Mix",    value: 12 },
-  { name: "Nasi Goreng",  value:  9 },
+  { name: "Kopi Hitam", value: 20 },
+  { name: "Mie Goreng", value: 18 },
+  { name: "Snack Mix", value: 12 },
+  { name: "Nasi Goreng", value: 9 },
 ];
 
 const topGamesMonth = [
-  { name: "Pandemic",       value: 34, color: "#1E40AF" },
-  { name: "Catan",          value: 28, color: "#3B82F6" },
+  { name: "Pandemic", value: 34, color: "#1E40AF" },
+  { name: "Catan", value: 28, color: "#3B82F6" },
   { name: "Ticket to Ride", value: 22, color: "#93C5FD" },
-  { name: "Wingspan",       value: 19, color: "#BFDBFE" },
-  { name: "Others",         value: 83, color: "#DBEAFE" },
+  { name: "Wingspan", value: 19, color: "#BFDBFE" },
+  { name: "Others", value: 83, color: "#DBEAFE" },
 ];
 const topGamesWeek = [
-  { name: "Pandemic",       value:  8, color: "#1E40AF" },
-  { name: "Wingspan",       value:  7, color: "#3B82F6" },
-  { name: "Catan",          value:  5, color: "#93C5FD" },
-  { name: "Ticket to Ride", value:  4, color: "#BFDBFE" },
-  { name: "Others",         value: 14, color: "#DBEAFE" },
+  { name: "Pandemic", value: 8, color: "#1E40AF" },
+  { name: "Wingspan", value: 7, color: "#3B82F6" },
+  { name: "Catan", value: 5, color: "#93C5FD" },
+  { name: "Ticket to Ride", value: 4, color: "#BFDBFE" },
+  { name: "Others", value: 14, color: "#DBEAFE" },
 ];
 
 const heatmapDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const heatmapHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 const heatmapData: Record<string, Record<number, number>> = {
-  Mon: { 10:1,11:2,12:3,13:4,14:3,15:4,16:5,17:6,18:7,19:5,20:3,21:1 },
-  Tue: { 10:2,11:3,12:4,13:5,14:4,15:5,16:6,17:7,18:6,19:4,20:2,21:1 },
-  Wed: { 10:1,11:2,12:3,13:4,14:5,15:6,16:7,17:8,18:7,19:6,20:4,21:2 },
-  Thu: { 10:2,11:3,12:2,13:4,14:3,15:5,16:6,17:7,18:8,19:7,20:5,21:3 },
-  Fri: { 10:1,11:2,12:4,13:5,14:6,15:7,16:8,17:9,18:8,19:7,20:6,21:4 },
-  Sat: { 10:3,11:4,12:5,13:6,14:5,15:4,16:5,17:6,18:5,19:4,20:3,21:2 },
-  Sun: { 10:2,11:3,12:4,13:3,14:2,15:3,16:4,17:5,18:4,19:3,20:2,21:1 },
+  Mon: { 10: 1, 11: 2, 12: 3, 13: 4, 14: 3, 15: 4, 16: 5, 17: 6, 18: 7, 19: 5, 20: 3, 21: 1 },
+  Tue: { 10: 2, 11: 3, 12: 4, 13: 5, 14: 4, 15: 5, 16: 6, 17: 7, 18: 6, 19: 4, 20: 2, 21: 1 },
+  Wed: { 10: 1, 11: 2, 12: 3, 13: 4, 14: 5, 15: 6, 16: 7, 17: 8, 18: 7, 19: 6, 20: 4, 21: 2 },
+  Thu: { 10: 2, 11: 3, 12: 2, 13: 4, 14: 3, 15: 5, 16: 6, 17: 7, 18: 8, 19: 7, 20: 5, 21: 3 },
+  Fri: { 10: 1, 11: 2, 12: 4, 13: 5, 14: 6, 15: 7, 16: 8, 17: 9, 18: 8, 19: 7, 20: 6, 21: 4 },
+  Sat: { 10: 3, 11: 4, 12: 5, 13: 6, 14: 5, 15: 4, 16: 5, 17: 6, 18: 5, 19: 4, 20: 3, 21: 2 },
+  Sun: { 10: 2, 11: 3, 12: 4, 13: 3, 14: 2, 15: 3, 16: 4, 17: 5, 18: 4, 19: 3, 20: 2, 21: 1 },
 };
 
 const PAGE_SIZE = 5;
@@ -197,11 +198,10 @@ function ReportsView() {
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                period === p
+              className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${period === p
                   ? "bg-[#3B82F6] text-white border-[#3B82F6] shadow"
                   : "bg-white text-[#64748B] border-slate-200 hover:border-[#3B82F6]"
-              }`}
+                }`}
             >
               {p === "week" ? "This Week" : p === "month" ? "This Month" : "Custom"}
             </button>
@@ -227,14 +227,14 @@ function ReportsView() {
             onClick={handleExportCSV}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-white border border-slate-200 text-[#0F172A] hover:border-[#3B82F6] transition-all"
           >
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             Export CSV
           </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-white border border-slate-200 text-[#0F172A] hover:border-[#3B82F6] transition-all"
           >
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>
             Print
           </button>
         </div>
@@ -243,10 +243,10 @@ function ReportsView() {
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "TOTAL REVENUE",   value: formatRp(totalRevenue), accent: "#0F172A",  border: "border-t-2 border-t-slate-200" },
-          { label: "F&B REVENUE",     value: formatRp(totalFnB), accent: "#0F172A",  border: "border-t-2 border-t-slate-200" },
-          { label: "RENTAL REVENUE",  value: formatRp(totalRental), accent: "#0F172A",  border: "border-t-2 border-t-slate-200" },
-          { label: "TOTAL SESSIONS",  value: `${totalSessionsCount} sessions`, accent: "#16A34A", border: "border-t-2 border-t-emerald-400" },
+          { label: "TOTAL REVENUE", value: formatRp(totalRevenue), accent: "#0F172A", border: "border-t-2 border-t-slate-200" },
+          { label: "F&B REVENUE", value: formatRp(totalFnB), accent: "#0F172A", border: "border-t-2 border-t-slate-200" },
+          { label: "RENTAL REVENUE", value: formatRp(totalRental), accent: "#0F172A", border: "border-t-2 border-t-slate-200" },
+          { label: "TOTAL SESSIONS", value: `${totalSessionsCount} sessions`, accent: "#16A34A", border: "border-t-2 border-t-emerald-400" },
         ].map((card) => (
           <div key={card.label} className={`bg-white rounded-xl border border-slate-100 ${card.border} p-5 shadow-sm`}>
             <p className="text-[9px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">{card.label}</p>
@@ -267,7 +267,7 @@ function ReportsView() {
               <YAxis tickFormatter={formatK} tick={{ fontSize: 9, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
               <Tooltip formatter={(v: number) => [`Rp ${v.toLocaleString("id-ID")}`, ""]} contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #E2E8F0" }} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-              <Line type="monotone" dataKey="fnb"    stroke="#1D4ED8" strokeWidth={2} dot={false} name="F&B" />
+              <Line type="monotone" dataKey="fnb" stroke="#1D4ED8" strokeWidth={2} dot={false} name="F&B" />
               <Line type="monotone" dataKey="rental" stroke="#93C5FD" strokeWidth={2} dot={false} name="Rental" />
             </LineChart>
           </ResponsiveContainer>
@@ -329,7 +329,7 @@ function ReportsView() {
             {/* Legend */}
             <div className="flex items-center gap-1 mt-3">
               <span className="text-[10px] text-[#94A3B8] mr-1">Low</span>
-              {[1,3,5,7,9].map(v => (
+              {[1, 3, 5, 7, 9].map(v => (
                 <div key={v} style={{ width: 16, height: 16, borderRadius: 3, backgroundColor: getHeatColor(v) }} />
               ))}
               <span className="text-[10px] text-[#94A3B8] ml-1">High</span>
@@ -398,11 +398,10 @@ function ReportsView() {
                   </td>
                   <td className="px-4 py-3 font-bold text-[#0F172A] text-xs whitespace-nowrap">{tx.total}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      tx.payment === "QRIS"     ? "bg-blue-50 text-blue-600 border border-blue-200" :
-                      tx.payment === "Transfer" ? "bg-purple-50 text-purple-600 border border-purple-200" :
-                                                  "bg-slate-100 text-slate-600 border border-slate-200"
-                    }`}>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${tx.payment === "QRIS" ? "bg-blue-50 text-blue-600 border border-blue-200" :
+                        tx.payment === "Transfer" ? "bg-purple-50 text-purple-600 border border-purple-200" :
+                          "bg-slate-100 text-slate-600 border border-slate-200"
+                      }`}>
                       {tx.payment}
                     </span>
                   </td>
@@ -417,11 +416,10 @@ function ReportsView() {
             <button
               key={p}
               onClick={() => setTxPage(p)}
-              className={`w-7 h-7 rounded-md text-xs font-bold transition-all ${
-                p === txPage
+              className={`w-7 h-7 rounded-md text-xs font-bold transition-all ${p === txPage
                   ? "bg-[#3B82F6] text-white shadow"
                   : "bg-white text-[#64748B] border border-slate-200 hover:border-[#3B82F6]"
-              }`}
+                }`}
             >
               {p}
             </button>
@@ -443,7 +441,7 @@ function ReportsView() {
 // ─────────────────────────────────────────────────────────────────────────────
 // SETTINGS VIEW COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-const DAYS = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
+const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
 const defaultCafeInfo = {
   name: "Cafe Sebangku.id",
@@ -453,24 +451,24 @@ const defaultCafeInfo = {
 };
 
 const defaultHours: Record<string, { open: string; close: string; active: boolean }> = {
-  Senin:  { open:"10:00", close:"23:00", active:true },
-  Selasa: { open:"10:00", close:"23:00", active:true },
-  Rabu:   { open:"10:00", close:"23:00", active:true },
-  Kamis:  { open:"10:00", close:"23:00", active:true },
-  Jumat:  { open:"10:00", close:"24:00", active:true },
-  Sabtu:  { open:"09:00", close:"24:00", active:true },
-  Minggu: { open:"09:00", close:"22:00", active:true },
+  Senin: { open: "10:00", close: "23:00", active: true },
+  Selasa: { open: "10:00", close: "23:00", active: true },
+  Rabu: { open: "10:00", close: "23:00", active: true },
+  Kamis: { open: "10:00", close: "23:00", active: true },
+  Jumat: { open: "10:00", close: "24:00", active: true },
+  Sabtu: { open: "09:00", close: "24:00", active: true },
+  Minggu: { open: "09:00", close: "22:00", active: true },
 };
 
 const defaultPayments = { qris: true, cash: true, transfer: false };
 
 function SettingsView() {
   const settingsSections = [
-    { id:"info",     label:"Informasi Cafe" },
-    { id:"hours",    label:"Jam Operasional" },
-    { id:"payment",  label:"Metode Pembayaran" },
-    { id:"security", label:"Keamanan Akun" },
-    { id:"data",     label:"Manajemen Data" },
+    { id: "info", label: "Informasi Cafe" },
+    { id: "hours", label: "Jam Operasional" },
+    { id: "payment", label: "Metode Pembayaran" },
+    { id: "security", label: "Keamanan Akun" },
+    { id: "data", label: "Manajemen Data" },
   ];
   const [activeSection, setActiveSection] = useState("info");
 
@@ -505,8 +503,8 @@ function SettingsView() {
   };
 
   // ── Security ──
-  const [ownerPw, setOwnerPw] = useState({ current:"", next:"", confirm:"" });
-  const [kasirPin, setKasirPin] = useState({ next:"", confirm:"" });
+  const [ownerPw, setOwnerPw] = useState({ current: "", next: "", confirm: "" });
+  const [kasirPin, setKasirPin] = useState({ next: "", confirm: "" });
   const [pwError, setPwError] = useState("");
   const [pinError, setPinError] = useState("");
 
@@ -514,7 +512,7 @@ function SettingsView() {
     if (ownerPw.next !== ownerPw.confirm) { setPwError("Password baru tidak cocok!"); return; }
     if (ownerPw.next.length < 6) { setPwError("Minimal 6 karakter!"); return; }
     localStorage.setItem("ownerPassword", ownerPw.next);
-    setOwnerPw({ current:"", next:"", confirm:"" });
+    setOwnerPw({ current: "", next: "", confirm: "" });
     setPwError("");
     alert("Password berhasil diubah!");
   };
@@ -523,7 +521,7 @@ function SettingsView() {
     if (kasirPin.next !== kasirPin.confirm) { setPinError("PIN tidak cocok!"); return; }
     if (kasirPin.next.length < 4) { setPinError("Minimal 4 digit!"); return; }
     localStorage.setItem("kasirPin", kasirPin.next);
-    setKasirPin({ next:"", confirm:"" });
+    setKasirPin({ next: "", confirm: "" });
     setPinError("");
     alert("PIN kasir berhasil diubah!");
   };
@@ -557,11 +555,10 @@ function SettingsView() {
           <button
             key={s.id}
             onClick={() => setActiveSection(s.id)}
-            className={`text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeSection === s.id
+            className={`text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeSection === s.id
                 ? "bg-blue-600 text-white shadow"
                 : "text-[#64748B] hover:bg-slate-50"
-            }`}
+              }`}
           >
             {s.label}
           </button>
@@ -574,11 +571,10 @@ function SettingsView() {
           <button
             key={s.id}
             onClick={() => setActiveSection(s.id)}
-            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-              activeSection === s.id
+            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${activeSection === s.id
                 ? "bg-blue-600 text-white border-blue-600"
                 : "bg-white text-[#64748B] border-slate-200"
-            }`}
+              }`}
           >
             {s.label}
           </button>
@@ -595,19 +591,19 @@ function SettingsView() {
             <div className="space-y-4">
               <div>
                 <label className={labelCls}>Nama Cafe</label>
-                <input className={inputCls} value={cafeInfo.name} onChange={e => setCafeInfo({...cafeInfo, name: e.target.value})} />
+                <input className={inputCls} value={cafeInfo.name} onChange={e => setCafeInfo({ ...cafeInfo, name: e.target.value })} />
               </div>
               <div>
                 <label className={labelCls}>Nomor WhatsApp / Telepon</label>
-                <input className={inputCls} value={cafeInfo.phone} onChange={e => setCafeInfo({...cafeInfo, phone: e.target.value})} placeholder="08xxxxxxxxxx" />
+                <input className={inputCls} value={cafeInfo.phone} onChange={e => setCafeInfo({ ...cafeInfo, phone: e.target.value })} placeholder="08xxxxxxxxxx" />
               </div>
               <div>
                 <label className={labelCls}>Instagram</label>
-                <input className={inputCls} value={cafeInfo.instagram} onChange={e => setCafeInfo({...cafeInfo, instagram: e.target.value})} placeholder="@username" />
+                <input className={inputCls} value={cafeInfo.instagram} onChange={e => setCafeInfo({ ...cafeInfo, instagram: e.target.value })} placeholder="@username" />
               </div>
               <div>
                 <label className={labelCls}>Alamat Lengkap</label>
-                <textarea className={inputCls} rows={3} value={cafeInfo.address} onChange={e => setCafeInfo({...cafeInfo, address: e.target.value})} />
+                <textarea className={inputCls} rows={3} value={cafeInfo.address} onChange={e => setCafeInfo({ ...cafeInfo, address: e.target.value })} />
               </div>
               <div className="flex justify-end pt-2">
                 <button onClick={saveCafeInfo} className={saveBtnCls}>Simpan Informasi</button>
@@ -665,9 +661,9 @@ function SettingsView() {
             <h3 className="text-base font-black text-[#0F172A] mb-5 pb-3 border-b border-slate-100">Metode Pembayaran</h3>
             <div className="space-y-3">
               {([
-                { key:"qris",     label:"QRIS",          desc:"QR Code pembayaran digital",         color:"bg-blue-50 text-blue-600 border-blue-200" },
-                { key:"cash",     label:"Tunai (Cash)",  desc:"Pembayaran langsung dengan uang tunai", color:"bg-green-50 text-green-600 border-green-200" },
-                { key:"transfer", label:"Transfer Bank", desc:"Transfer manual ke rekening cafe",    color:"bg-purple-50 text-purple-600 border-purple-200" },
+                { key: "qris", label: "QRIS", desc: "QR Code pembayaran digital", color: "bg-blue-50 text-blue-600 border-blue-200" },
+                { key: "cash", label: "Tunai (Cash)", desc: "Pembayaran langsung dengan uang tunai", color: "bg-green-50 text-green-600 border-green-200" },
+                { key: "transfer", label: "Transfer Bank", desc: "Transfer manual ke rekening cafe", color: "bg-purple-50 text-purple-600 border-purple-200" },
               ] as { key: keyof typeof payments; label: string; desc: string; color: string }[]).map(({ key, label, desc, color }) => (
                 <div key={key as string} className={`flex items-center justify-between p-4 rounded-xl border ${payments[key] ? color : "bg-slate-50 text-slate-400 border-slate-200"} transition-all`}>
                   <div>
@@ -698,15 +694,15 @@ function SettingsView() {
               <div className="space-y-3">
                 <div>
                   <label className={labelCls}>Password Saat Ini</label>
-                  <input type="password" className={inputCls} value={ownerPw.current} onChange={e => setOwnerPw({...ownerPw, current: e.target.value})} placeholder="••••••••" />
+                  <input type="password" className={inputCls} value={ownerPw.current} onChange={e => setOwnerPw({ ...ownerPw, current: e.target.value })} placeholder="••••••••" />
                 </div>
                 <div>
                   <label className={labelCls}>Password Baru</label>
-                  <input type="password" className={inputCls} value={ownerPw.next} onChange={e => setOwnerPw({...ownerPw, next: e.target.value})} placeholder="Minimal 6 karakter" />
+                  <input type="password" className={inputCls} value={ownerPw.next} onChange={e => setOwnerPw({ ...ownerPw, next: e.target.value })} placeholder="Minimal 6 karakter" />
                 </div>
                 <div>
                   <label className={labelCls}>Konfirmasi Password Baru</label>
-                  <input type="password" className={inputCls} value={ownerPw.confirm} onChange={e => setOwnerPw({...ownerPw, confirm: e.target.value})} placeholder="Ulangi password baru" />
+                  <input type="password" className={inputCls} value={ownerPw.confirm} onChange={e => setOwnerPw({ ...ownerPw, confirm: e.target.value })} placeholder="Ulangi password baru" />
                 </div>
                 {pwError && <p className="text-xs text-red-500 font-medium">{pwError}</p>}
                 <div className="flex justify-end pt-1">
@@ -722,11 +718,11 @@ function SettingsView() {
               <div className="space-y-3">
                 <div>
                   <label className={labelCls}>PIN Baru</label>
-                  <input type="password" inputMode="numeric" maxLength={6} className={inputCls} value={kasirPin.next} onChange={e => setKasirPin({...kasirPin, next: e.target.value})} placeholder="Minimal 4 digit" />
+                  <input type="password" inputMode="numeric" maxLength={6} className={inputCls} value={kasirPin.next} onChange={e => setKasirPin({ ...kasirPin, next: e.target.value })} placeholder="Minimal 4 digit" />
                 </div>
                 <div>
                   <label className={labelCls}>Konfirmasi PIN Baru</label>
-                  <input type="password" inputMode="numeric" maxLength={6} className={inputCls} value={kasirPin.confirm} onChange={e => setKasirPin({...kasirPin, confirm: e.target.value})} placeholder="Ulangi PIN" />
+                  <input type="password" inputMode="numeric" maxLength={6} className={inputCls} value={kasirPin.confirm} onChange={e => setKasirPin({ ...kasirPin, confirm: e.target.value })} placeholder="Ulangi PIN" />
                 </div>
                 {pinError && <p className="text-xs text-red-500 font-medium">{pinError}</p>}
                 <div className="flex justify-end pt-1">
@@ -744,7 +740,7 @@ function SettingsView() {
               <h3 className="text-base font-black text-[#0F172A] mb-5 pb-3 border-b border-slate-100">Export Data</h3>
               <p className="text-sm text-[#64748B] mb-4">Download semua data cafe (menu, game, pengaturan) dalam format JSON untuk backup.</p>
               <button onClick={exportAll} className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl text-sm font-bold hover:bg-blue-100 transition-colors cursor-pointer">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                 Download Backup JSON
               </button>
             </div>
@@ -753,12 +749,12 @@ function SettingsView() {
               <h3 className="text-base font-black text-[#0F172A] mb-5 pb-3 border-b border-slate-100">Reset Data Transaksi</h3>
               <p className="text-sm text-[#64748B] mb-4">Hapus semua riwayat transaksi. <strong>Aksi ini tidak dapat dibatalkan.</strong></p>
               <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
-                <svg width="20" height="20" fill="none" stroke="#EF4444" strokeWidth="2" viewBox="0 0 24 24" className="shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg width="20" height="20" fill="none" stroke="#EF4444" strokeWidth="2" viewBox="0 0 24 24" className="shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                 <p className="text-xs text-red-600 font-medium flex-1">Data yang sudah dihapus tidak bisa dikembalikan. Pastikan kamu sudah melakukan backup terlebih dahulu.</p>
               </div>
               <div className="flex justify-end mt-4">
                 <button onClick={resetTransactions} className="flex items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer">
-                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" /></svg>
                   Reset Transaksi
                 </button>
               </div>
@@ -892,7 +888,7 @@ function CommunityView() {
   const ratingCounts = useMemo(() => {
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     reviews.forEach((r: any) => {
-      const rate = r.rating as 5|4|3|2|1;
+      const rate = r.rating as 5 | 4 | 3 | 2 | 1;
       if (counts[rate] !== undefined) counts[rate]++;
     });
     return counts;
@@ -941,7 +937,7 @@ function CommunityView() {
         {/* Rating Breakdown */}
         <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col gap-1.5 justify-center">
           {[5, 4, 3, 2, 1].map(star => {
-            const count = ratingCounts[star as 5|4|3|2|1] || 0;
+            const count = ratingCounts[star as 5 | 4 | 3 | 2 | 1] || 0;
             const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
             return (
               <div key={star} className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
@@ -960,17 +956,15 @@ function CommunityView() {
       <div className="flex border-b border-slate-100">
         <button
           onClick={() => setActiveTab("reviews")}
-          className={`px-5 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-            activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-600"
-          }`}
+          className={`px-5 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${activeTab === "reviews" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-600"
+            }`}
         >
           Ulasan Pelanggan
         </button>
         <button
           onClick={() => setActiveTab("suggestions")}
-          className={`px-5 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-            activeTab === "suggestions" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-600"
-          }`}
+          className={`px-5 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${activeTab === "suggestions" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-600"
+            }`}
         >
           Usulan Game Baru ({suggestions.length})
         </button>
@@ -986,11 +980,10 @@ function CommunityView() {
               <button
                 key={rate}
                 onClick={() => setSelectedRatingFilter(rate as any)}
-                className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
-                  selectedRatingFilter === rate
+                className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${selectedRatingFilter === rate
                     ? "bg-blue-600 text-white border-blue-600"
                     : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
-                }`}
+                  }`}
               >
                 {rate === "All" ? "Semua" : `${rate} ★`}
               </button>
@@ -1306,7 +1299,7 @@ export default function OwnerPage() {
     if (formType === "game") {
       let updatedGames = [];
       let updatedRentGames = [...rentGames];
-      
+
       if (formMode === "add") {
         const newId = "bg_" + Date.now();
         const newGame = {
@@ -1324,7 +1317,7 @@ export default function OwnerPage() {
           maxPlayers: fieldMaxPlayers
         };
         updatedGames = [...boardGames, newGame];
-        
+
         // Also add to rentGames for POS
         const newRentGame = {
           id: "g_" + Date.now(),
@@ -1375,7 +1368,7 @@ export default function OwnerPage() {
           return rg;
         });
       }
-      
+
       setBoardGames(updatedGames);
       setRentGames(updatedRentGames);
       localStorage.setItem("sebangku_board_games", JSON.stringify(updatedGames));
@@ -1486,7 +1479,7 @@ export default function OwnerPage() {
 
   return (
     <div className="min-h-screen flex bg-[#F8FAFC]" style={{ fontFamily: "'Poppins', sans-serif" }}>
-      
+
       {/* ── DESKTOP SIDEBAR ── */}
       <aside
         className="hidden md:flex w-[220px] shrink-0 flex-col"
@@ -1549,8 +1542,8 @@ export default function OwnerPage() {
               </span>
             </div>
           </div>
-          <button 
-            onClick={() => navigate("/")} 
+          <button
+            onClick={() => navigate("/")}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left cursor-pointer transition-colors hover:bg-white/5"
             style={{ color: "rgba(255,255,255,0.45)" }}
           >
@@ -1620,8 +1613,8 @@ export default function OwnerPage() {
                     </span>
                   </div>
                 </div>
-                <button 
-                  onClick={() => navigate("/")} 
+                <button
+                  onClick={() => navigate("/")}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left cursor-pointer transition-colors hover:bg-white/5"
                   style={{ color: "rgba(255,255,255,0.45)" }}
                 >
@@ -1636,7 +1629,7 @@ export default function OwnerPage() {
 
       {/* ── MAIN CONTENT AREA ── */}
       <div className="flex-1 flex flex-col min-w-0 md:pl-[220px]">
-        
+
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-white flex items-center justify-between px-4 md:px-6 h-14 border-b border-[#E2E8F0] shadow-sm">
           <button
@@ -1645,7 +1638,7 @@ export default function OwnerPage() {
           >
             <Menu size={22} />
           </button>
-          
+
           <div className="hidden md:flex items-center gap-2 text-sm text-[#64748B]">
             <span>Admin</span>
             <ChevronRight size={14} className="text-[#94A3B8]" />
@@ -1674,7 +1667,7 @@ export default function OwnerPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              
+
               {/* ───────────────── 1. DASHBOARD VIEW ───────────────── */}
               {activeTab === "dashboard" && (
                 <div className="flex flex-col gap-6">
@@ -1791,8 +1784,8 @@ export default function OwnerPage() {
                             {activeSessions.map((session) => {
                               const isEndingSoon = session.status === "Ending Soon";
                               return (
-                                <tr 
-                                  key={session.id} 
+                                <tr
+                                  key={session.id}
                                   className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors"
                                   style={{
                                     backgroundColor: isEndingSoon ? "rgba(245,158,11,0.02)" : "transparent"
@@ -1808,12 +1801,11 @@ export default function OwnerPage() {
                                     {session.timeLeft}
                                   </td>
                                   <td className="py-3.5">
-                                    <span 
-                                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                                        isEndingSoon 
-                                          ? "text-amber-600 bg-amber-50 border border-amber-200" 
+                                    <span
+                                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${isEndingSoon
+                                          ? "text-amber-600 bg-amber-50 border border-amber-200"
                                           : "text-emerald-600 bg-emerald-50 border border-emerald-100"
-                                      }`}
+                                        }`}
                                     >
                                       {session.status}
                                     </span>
@@ -1851,11 +1843,10 @@ export default function OwnerPage() {
                                 initial={{ height: 0 }}
                                 animate={{ height: `${(bar.val / 110) * 100}%` }}
                                 transition={{ delay: i * 0.05, duration: 0.5 }}
-                                className={`w-full rounded-t-lg transition-all ${
-                                  bar.isToday 
-                                    ? "bg-gradient-to-t from-blue-600 to-blue-400 group-hover:from-blue-500 group-hover:to-blue-300" 
+                                className={`w-full rounded-t-lg transition-all ${bar.isToday
+                                    ? "bg-gradient-to-t from-blue-600 to-blue-400 group-hover:from-blue-500 group-hover:to-blue-300"
                                     : "bg-gradient-to-t from-[#3B82F6]/80 to-[#60A5FA]/80 group-hover:from-[#3B82F6] group-hover:to-[#60A5FA]"
-                                }`}
+                                  }`}
                               />
                               {/* Hover tooltip */}
                               <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] font-bold py-1 px-1.5 rounded shadow-md pointer-events-none transition-opacity whitespace-nowrap z-10">
@@ -1990,9 +1981,8 @@ export default function OwnerPage() {
                           layout
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${
-                            game.active ? "border-slate-100" : "border-slate-200 opacity-70"
-                          }`}
+                          className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${game.active ? "border-slate-100" : "border-slate-200 opacity-70"
+                            }`}
                         >
                           {/* Card Image */}
                           <div className="relative h-36 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center overflow-hidden">
@@ -2010,11 +2000,10 @@ export default function OwnerPage() {
                               </div>
                             )}
                             {/* Active badge */}
-                            <div className={`absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                              game.active
+                            <div className={`absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${game.active
                                 ? "bg-emerald-500 text-white"
                                 : "bg-slate-500 text-white"
-                            }`}>
+                              }`}>
                               {game.active ? "Aktif" : "Nonaktif"}
                             </div>
                             {/* Stock badge */}
@@ -2048,11 +2037,10 @@ export default function OwnerPage() {
                               {/* Toggle Active */}
                               <button
                                 onClick={() => handleToggleStatusGame(game.id)}
-                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                                  game.active
+                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${game.active
                                     ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                                     : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                                }`}
+                                  }`}
                                 title={game.active ? "Nonaktifkan" : "Aktifkan"}
                               >
                                 <Power size={11} />
@@ -2130,11 +2118,10 @@ export default function OwnerPage() {
                               <td className="px-5 py-3.5">
                                 <button
                                   onClick={() => handleToggleStatusGame(game.id)}
-                                  className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                                    game.active
+                                  className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${game.active
                                       ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                       : "bg-slate-100 text-slate-500 border border-slate-200"
-                                  }`}
+                                    }`}
                                 >
                                   {game.active ? <ToggleRight size={12} /> : <ToggleLeft size={12} />}
                                   {game.active ? "Aktif" : "Nonaktif"}
@@ -2156,6 +2143,8 @@ export default function OwnerPage() {
                       </table>
                     </div>
                   )}
+
+
                 </div>
               )}
 
@@ -2218,9 +2207,8 @@ export default function OwnerPage() {
                           layout
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${
-                            item.active ? "border-slate-100" : "border-slate-200 opacity-70"
-                          }`}
+                          className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${item.active ? "border-slate-100" : "border-slate-200 opacity-70"
+                            }`}
                         >
                           {/* Card Image */}
                           <div className="relative h-32 bg-gradient-to-br from-orange-50 to-amber-100 flex items-center justify-center overflow-hidden">
@@ -2238,9 +2226,8 @@ export default function OwnerPage() {
                               </div>
                             )}
                             {/* Status badge */}
-                            <div className={`absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                              item.active ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
-                            }`}>
+                            <div className={`absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full ${item.active ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                              }`}>
                               {item.active ? "Tersedia" : "Habis"}
                             </div>
                             {/* Category badge */}
@@ -2264,11 +2251,10 @@ export default function OwnerPage() {
                             <div className="flex items-center gap-1.5 pt-2 border-t border-slate-50">
                               <button
                                 onClick={() => handleToggleStatusFb(item.id)}
-                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                                  item.active
+                                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${item.active
                                     ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                                     : "bg-red-50 text-red-600 hover:bg-red-100"
-                                }`}
+                                  }`}
                               >
                                 <Power size={11} />
                                 {item.active ? "Tersedia" : "Habis"}
@@ -2340,11 +2326,10 @@ export default function OwnerPage() {
                               <td className="px-5 py-3.5">
                                 <button
                                   onClick={() => handleToggleStatusFb(item.id)}
-                                  className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                                    item.active
+                                  className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${item.active
                                       ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                       : "bg-red-50 text-red-600 border border-red-200"
-                                  }`}
+                                    }`}
                                 >
                                   {item.active ? <ToggleRight size={12} /> : <ToggleLeft size={12} />}
                                   {item.active ? "Tersedia" : "Habis"}
@@ -2407,9 +2392,8 @@ export default function OwnerPage() {
             >
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ fontFamily: "'Poppins', sans-serif" }}>
                 {/* Modal Header */}
-                <div className={`p-5 border-b border-slate-100 flex items-center justify-between rounded-t-3xl ${
-                  formType === "game" ? "bg-gradient-to-r from-blue-600 to-indigo-600" : "bg-gradient-to-r from-orange-500 to-amber-500"
-                }`}>
+                <div className={`p-5 border-b border-slate-100 flex items-center justify-between rounded-t-3xl ${formType === "game" ? "bg-gradient-to-r from-blue-600 to-indigo-600" : "bg-gradient-to-r from-orange-500 to-amber-500"
+                  }`}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
                       {formType === "game" ? <Dices size={18} className="text-white" /> : <Utensils size={18} className="text-white" />}
@@ -2555,11 +2539,10 @@ export default function OwnerPage() {
                     ) : (
                       /* Drop Zone — label + hidden input (standar HTML5, tidak trigger form submit) */
                       <label
-                        className={`flex flex-col items-center justify-center w-full h-32 rounded-2xl border-2 border-dashed cursor-pointer transition-all ${
-                          isDragOver
+                        className={`flex flex-col items-center justify-center w-full h-32 rounded-2xl border-2 border-dashed cursor-pointer transition-all ${isDragOver
                             ? (formType === "game" ? "border-blue-500 bg-blue-50" : "border-orange-400 bg-orange-50")
                             : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"
-                        }`}
+                          }`}
                         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
                         onDragLeave={() => setIsDragOver(false)}
                         onDrop={(e) => {
@@ -2579,11 +2562,10 @@ export default function OwnerPage() {
                             e.target.value = "";
                           }}
                         />
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors ${
-                          isDragOver
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors ${isDragOver
                             ? (formType === "game" ? "bg-blue-100" : "bg-orange-100")
                             : "bg-slate-200"
-                        }`}>
+                          }`}>
                           <ImageIcon size={18} className={isDragOver ? (formType === "game" ? "text-blue-600" : "text-orange-500") : "text-slate-400"} />
                         </div>
                         <p className="text-xs font-bold text-slate-500">
@@ -2607,13 +2589,12 @@ export default function OwnerPage() {
                           key={val}
                           type="button"
                           onClick={() => setFieldStatus(val)}
-                          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border-2 ${
-                            fieldStatus === val
+                          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border-2 ${fieldStatus === val
                               ? (val === "Available" || val === "In Stock")
                                 ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                                 : "border-red-400 bg-red-50 text-red-600"
                               : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300"
-                          }`}
+                            }`}
                         >
                           {label}
                         </button>
@@ -2642,11 +2623,10 @@ export default function OwnerPage() {
                     </button>
                     <button
                       type="submit"
-                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md ${
-                        formType === "game"
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md ${formType === "game"
                           ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
                           : "bg-orange-500 hover:bg-orange-600 shadow-orange-100"
-                      }`}
+                        }`}
                     >
                       <Save size={13} />
                       {formMode === "add" ? "Simpan & Tambah" : "Simpan Perubahan"}
