@@ -10,10 +10,10 @@ import ownerPhoto from "../../assets/images/owner_photo.png";
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" />
-      <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05" />
-      <path d="M9 3.576c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.576 9 3.576z" fill="#EA4335" />
+      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+      <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.576c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.576 9 3.576z" fill="#EA4335"/>
     </svg>
   );
 }
@@ -112,7 +112,7 @@ export default function LoginPage() {
 
   const validate = () => {
     const newErrors: typeof errors = {};
-    if (!email) newErrors.email = "Username/Email wajib diisi";
+    if (!email) newErrors.email = "Email atau Username wajib diisi";
     if (!password) newErrors.password = "Password wajib diisi";
     else if (password.length < 6) newErrors.password = "Password minimal 6 karakter";
     return newErrors;
@@ -125,11 +125,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // KEMBALI KE BAWAAN: Menggunakan modul autentikasi resmi Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: email,
+        password: password,
       });
-
+      
       if (error) {
         setIsLoading(false);
         setErrors({ general: "Gagal login. " + error.message });
@@ -138,8 +139,10 @@ export default function LoginPage() {
 
       setIsLoading(false);
       setLoginSuccess(true);
-
-      const role = data.user?.user_metadata?.role || "Customer";
+      
+      // Mengambil metadata role. Secara default jika kosong di-set sebagai "Kasir" 
+      // (Bisa disesuaikan atau membaca fallback data dari tabel public.users jika perlu)
+      const role = data.user?.user_metadata?.role || "Kasir";
 
       const userData = {
         id: data.user.id,
@@ -148,11 +151,12 @@ export default function LoginPage() {
         role: role,
       };
 
-      // Save authenticated user data
+      // Simpan enkapsulasi token ke local storage aplikasi
       localStorage.setItem("sebangku_user", JSON.stringify(userData));
 
       await new Promise((r) => setTimeout(r, 900));
 
+      // Pengalihan Rute Terproteksi
       if (role === "Kasir") {
         navigate(tableId ? `/app/kasir?table=${tableId}` : "/app/kasir");
       } else if (role === "Owner") {
@@ -177,7 +181,6 @@ export default function LoginPage() {
     if (e.key === "Enter") handleLogin();
   };
 
-  // Detect if owner is typing
   const isOwnerEmail = email.toLowerCase().includes("owner");
 
   return (
@@ -292,7 +295,7 @@ export default function LoginPage() {
               Welcome Back 👋
             </h1>
             <p style={{ fontFamily: "'DM Sans', sans-serif" }} className="text-[#64748B] text-sm">
-              Masuk dengan akun email Anda
+              Masuk dengan kredensial Supabase Auth Anda
             </p>
           </motion.div>
 
@@ -341,7 +344,7 @@ export default function LoginPage() {
           {/* Form */}
           <div className="flex flex-col gap-4">
             <InputField
-              label="Email"
+              label="Email Address"
               type="email"
               value={email}
               onChange={setEmail}
@@ -406,15 +409,14 @@ export default function LoginPage() {
                 background: loginSuccess
                   ? "linear-gradient(135deg, #10B981, #059669)"
                   : isLoading
-                    ? "#E2E8F0"
-                    : "linear-gradient(135deg, #3B82F6, #60A5FA)",
+                  ? "#E2E8F0"
+                  : "linear-gradient(135deg, #3B82F6, #60A5FA)",
                 color: isLoading ? "#94A3B8" : "white",
                 fontWeight: 700,
                 fontSize: "15px",
                 boxShadow: isLoading ? "none" : "0 4px 16px rgba(59,130,246,0.3)",
               }}
             >
-              {/* Shimmer on loading */}
               {isLoading && (
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
@@ -434,11 +436,11 @@ export default function LoginPage() {
               ) : loginSuccess ? (
                 <>
                   <CheckCircle2 size={18} />
-                  Berhasil!
+                  <span>Berhasil!</span>
                 </>
               ) : (
                 <>
-                  Sign In
+                  <span>Sign In</span>
                   <motion.span animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
                     <ArrowRight size={18} />
                   </motion.span>
@@ -490,25 +492,6 @@ export default function LoginPage() {
               Daftar Sekarang →
             </Link>
           </motion.p>
-
-          {tableId && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.65 }}
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-              className="text-center text-xs text-[#94A3B8] mt-2"
-            >
-              Atau{" "}
-              <button
-                onClick={() => navigate(`/app?table=${tableId}&mode=guest`)}
-                className="text-[#94A3B8] underline cursor-pointer hover:text-[#64748B] transition-colors"
-              >
-                lanjut sebagai tamu
-              </button>{" "}
-              tanpa akun
-            </motion.p>
-          )}
         </div>
 
         {/* ── Right: Branding Panel ─────────────────────────────── */}
