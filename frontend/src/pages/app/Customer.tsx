@@ -1696,6 +1696,28 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
       if (!authData.user) throw new Error("User not authenticated");
       const userId = authData.user.id;
 
+      // Ensure customer profile exists to prevent foreign key constraint error
+      const { data: existingProfile } = await supabase
+        .from('customer_profiles')
+        .select('user_id')
+        .eq('user_id', userId)
+        .single();
+        
+      if (!existingProfile) {
+         await supabase.from('customer_profiles').insert({
+            user_id: userId,
+            nama_depan: authData.user.user_metadata?.name?.split(' ')[0] || 'Customer',
+            nama_belakang: authData.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+            phone: authData.user.user_metadata?.phone || '-',
+            level: 1,
+            kunjungan: 0,
+            waktu_bermain: 0,
+            win_rate: 0,
+            status: "Active · Regular",
+            member_sejak: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+         });
+      }
+
       // 0. Fetch a valid UUID for table_no to prevent UUID syntax error if cafe_tables uses UUID
       let realTableId: string | null = null;
       try {
