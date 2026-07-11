@@ -2555,7 +2555,16 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
             status: s.status === 'Pending' ? 'paid' : (s.status === 'Active' ? 'in_progress' : 'completed')
           };
         });
-        setActiveSessions(mapped);
+        setActiveSessions(prev => {
+          return mapped.map(m => {
+            const old = prev.find(p => p.id === m.id);
+            // Preserve local smooth secondsLeft to prevent flickering if status hasn't changed
+            if (old && old.status === m.status) {
+              return { ...m, secondsLeft: old.secondsLeft };
+            }
+            return m;
+          });
+        });
       }
     } catch (e) {
       console.error(e);
@@ -2579,7 +2588,7 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
             return { ...s, secondsLeft: s.secondsLeft - 1 };
           }
           return s;
-        }).filter(s => s.secondsLeft > 0);
+        });
 
         // Sync back to localStorage
         const saved = localStorage.getItem("sebangku_sessions");
