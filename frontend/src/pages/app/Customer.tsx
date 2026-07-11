@@ -818,7 +818,7 @@ function HistoryPage({ searchQuery, data = [], onClearHistory, showToast }: { se
                   </span>
 
                   {/* Table Badge */}
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${game.table.includes("A") ? "bg-red-50 text-red-500" :
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${game.table.includes("A") ? "bg-red-50 text-red-500" :
                     game.table.includes("B") ? "bg-amber-50 text-amber-600" :
                       game.table.includes("C") ? "bg-purple-50 text-purple-600" :
                         "bg-blue-50 text-blue-500"
@@ -1005,7 +1005,7 @@ function KunjunganPage({ searchQuery, data = [], onClearHistory, showToast }: { 
                   </td>
                   <td className="p-4 text-slate-500 font-semibold">{visit.duration}</td>
                   <td className="p-4">
-                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${visit.table.includes("A") ? "bg-red-50 text-red-500" :
+                    <span className={`px-3 py-1 rounded-full inline-flex items-center justify-center text-[10px] font-bold whitespace-nowrap ${visit.table.includes("A") ? "bg-red-50 text-red-500" :
                       visit.table.includes("B") ? "bg-amber-50 text-amber-600" :
                         visit.table.includes("C") ? "bg-purple-50 text-purple-600" :
                           "bg-blue-50 text-blue-500"
@@ -1548,15 +1548,70 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
   const [searchParams] = useSearchParams();
   const tableId = searchParams.get("table") || "A1";
 
-  const [products] = useState<any[]>(() => {
-    const saved = localStorage.getItem("sebangku_products");
-    return saved ? JSON.parse(saved) : PRODUCTS_FALLBACK;
-  });
+  const [products, setProducts] = useState<any[]>([]);
+  const [rentGames, setRentGames] = useState<any[]>([]);
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+  const [tables, setTables] = useState<string[]>(["A1", "A2", "B1", "B2", "C1", "C2"]);
 
-  const [rentGames] = useState<any[]>(() => {
-    const saved = localStorage.getItem("sebangku_rent_games");
-    return saved ? JSON.parse(saved) : RENT_GAMES_FALLBACK;
-  });
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      const { data: menuData } = await supabase.from('menus').select('*').order('name');
+      const { data: gameData } = await supabase.from('boardgames').select('*').order('name');
+      const { data: tableData } = await supabase.from('cafe_tables').select('*');
+      const { data: catData } = await supabase.from('categories').select('*').order('created_at', { ascending: true });
+      if (catData) setDbCategories(catData);
+      
+      if (tableData && tableData.length > 0) {
+        const tableNames = tableData.map((t: any) => String(t.table_no || t.name || t.id));
+        setTables(tableNames);
+        setSelectedTable(prev => tableNames.includes(prev) ? prev : tableNames[0]);
+      }
+      
+      const hashString = (str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return Math.abs(hash);
+      };
+
+      if (menuData) {
+        setProducts(menuData.map(m => {
+          const exactFallback = PRODUCTS_FALLBACK.find(f => f.name.toLowerCase() === (m.name || "").toLowerCase())?.image;
+          const randomFallback = PRODUCTS_FALLBACK[hashString(m.name || "") % PRODUCTS_FALLBACK.length]?.image;
+          return {
+            id: `p${m.id}`,
+            name: m.name,
+            price: m.price,
+            category: m.category || "Food",
+            emoji: m.emoji || "🍽️",
+            image: m.image_url || m.image || exactFallback || randomFallback
+          };
+        }));
+      }
+      
+      if (gameData) {
+        setRentGames(gameData.map(g => {
+          const exactFallback = RENT_GAMES_FALLBACK.find(f => f.name.toLowerCase() === (g.name || "").toLowerCase())?.image;
+          const randomFallback = RENT_GAMES_FALLBACK[hashString(g.name || "") % RENT_GAMES_FALLBACK.length]?.image;
+          return {
+            id: `g${g.id}`,
+            name: g.name,
+            price: g.price || 15000,
+            category: g.category || "Strategy",
+            description: g.description,
+            emoji: "🎲",
+            image: g.image_url || g.image || exactFallback || randomFallback,
+            status: g.status || "Available"
+          };
+        }));
+      }
+
+      setIsLoadingCatalog(false);
+    };
+    fetchCatalog();
+  }, []);
 
   const [activeTab, setActiveTab] = useState<"f&b" | "rent">("f&b");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -1570,12 +1625,12 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
   const [selectedGameForModal, setSelectedGameForModal] = useState<any | null>(null);
   const [selectedTable, setSelectedTable] = useState("A1");
   const [selectedPlayers, setSelectedPlayers] = useState(2);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const categories = useMemo(() => {
-    if (activeTab === "f&b") {
-      return ["All", "Food", "Drinks", "Snacks"];
-    }
-    return ["All", "Strategy", "Family", "Cooperative", "Party"];
-  }, [activeTab]);
+    const typeFilter = activeTab === "f&b" ? "fnb" : "game";
+    const list = dbCategories.filter(c => c.type === typeFilter).map(c => c.name);
+    return ["All", ...list];
+  }, [activeTab, dbCategories]);
 
   const itemsToDisplay = useMemo(() => {
     const list = activeTab === "f&b" ? products : rentGames;
@@ -1613,17 +1668,17 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
   };
 
   const cartTotal = useMemo(() => {
-    return cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    return cart.reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 1)), 0);
   }, [cart]);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
 
     if (paymentMethod === "QRIS") {
       setQrisStatus("pending");
       setShowQRISModal(true);
     } else {
-      processOrder();
+      await processOrder();
     }
   };
 
@@ -1632,29 +1687,9 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
     const orderId = `ORD-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(Math.floor(1000 + Math.random() * 9000))}`;
 
     // Split items into food & beverage and game rental
-    const fnbItems = cart.filter(i => i.id.startsWith("p"));
-    const rentalItems = cart.filter(i => i.id.startsWith("g"));
+    const rentalItems = cart.filter(i => String(i.id).startsWith("g"));
 
-    const newOrder = {
-      id: orderId,
-      customerName: userData.name,
-      customerPhone: userData.phone,
-      items: fnbItems,
-      rentals: rentalItems,
-      totalAmount: cartTotal,
-      paymentMethod,
-      status: "paid", // auto paid
-      createdAt: now.toISOString(),
-      table: tableId
-    };
-
-    // Save to localStorage for Kasir (simulated backend events)
-    const savedOrders = localStorage.getItem("sebangku_customer_orders");
-    const ordersList = savedOrders ? JSON.parse(savedOrders) : [];
-    ordersList.unshift(newOrder);
-    localStorage.setItem("sebangku_customer_orders", JSON.stringify(ordersList));
-    window.dispatchEvent(new Event("storage"));
-
+    setIsSubmitting(true);
     // --- Backend Integration: Save to Supabase ---
     try {
       const { data: authData } = await supabase.auth.getUser();
@@ -1664,26 +1699,26 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
       // 0. Fetch a valid UUID for table_no to prevent UUID syntax error if cafe_tables uses UUID
       let realTableId: string | null = null;
       try {
-        const { data: tableData } = await supabase.from('cafe_tables').select('id').limit(1).single();
-        if (tableData && tableData.id) realTableId = tableData.id;
+        const { data: tableData } = await supabase.from('cafe_tables').select('*');
+        if (tableData) {
+          const foundTable = tableData.find((t: any) => 
+            String(t.table_no || t.name || t.id).toLowerCase() === selectedTable.toLowerCase()
+          );
+          if (foundTable) realTableId = foundTable.id;
+        }
       } catch (e) {
         // ignore if fails
       }
 
-      // 1. Insert Transaction
+      // 1. Insert Transaction (for Kasir Incoming Orders)
       const { data: txData, error: txError } = await supabase
-        .from('customer_transactions')
+        .from('transactions')
         .insert({
-          user_id: userId,
-          table_no: selectedTable, // use user's selected table
-          players_count: selectedPlayers, // use user's selected players
-          items_summary: cart.map(i => i.name).join(' • '),
-          amount: cartTotal,
+          customer_id: userId,
+          table_id: realTableId || selectedTable,
+          total: cartTotal,
           payment_method: paymentMethod,
-          method: paymentMethod, // legacy column
-          details: cart,
-          date: new Date().toISOString(),
-          items: cart
+          status: 'Pending'
         })
         .select('id')
         .single();
@@ -1691,42 +1726,81 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
       if (txError) throw txError;
       const txId = txData.id;
 
-      // 2. Insert Game History if there are rentals
-      if (rentalItems.length > 0) {
-        const gameHistoryInserts = rentalItems.map(item => ({
-          user_id: userId,
-          name: item.name, // To fix null value in column "name" constraint
-          game_name: item.name,
-          game_image: item.image,
-          duration: item.duration || "2 Hours",
-          table_no: selectedTable,
-          players_count: selectedPlayers,
-          status: 'PENDING', // PENDING means active session for Kasir
-          rating: 5,
-          comment: "Sesi bermain yang menyenangkan!",
-          date: new Date().toISOString()
-        }));
-
-        const { error: gameError } = await supabase
-          .from('customer_game_history')
-          .insert(gameHistoryInserts);
-          
-        if (gameError) throw gameError;
-
-        // 3. Update Profile Stats
-        let addedHours = 0;
-        rentalItems.forEach(item => {
-          const hMatch = (item.duration || "").match(/(\d+)\s*Hour/i);
-          if (hMatch) addedHours += parseInt(hMatch[1], 10);
+      // 1b. Insert Transaction Details
+      const detailsData = cart
+        .filter(item => item.id.startsWith('p'))
+        .map(item => {
+          const itemIdStr = String(item.id);
+          const cleanMenuId = itemIdStr.substring(1);
+          return {
+            transaction_id: txId,
+            menu_id: parseInt(cleanMenuId, 10),
+            qty: item.quantity || 1,
+            price: item.price || 0
+          };
         });
 
-        await supabase
-          .from('customer_profiles')
-          .update({
-            kunjungan: (userData.kunjungan || 0) + 1,
-            waktu_bermain: (userData.waktuJam || 0) + addedHours
-          })
-          .eq('user_id', userId);
+      if (detailsData.length > 0) {
+        const { error: detailsError } = await supabase.from('transaction_details').insert(detailsData);
+        if (detailsError) throw detailsError;
+      }
+
+      // 2. Insert Game Sessions if there are rentals
+      let gsInsertedData: any[] = [];
+      if (rentalItems.length > 0) {
+        const gameSessionInserts = rentalItems.map(item => {
+          let durationMins = 120;
+          if (item.duration === "1 Hour") durationMins = 60;
+          if (item.duration === "2 Hours") durationMins = 120;
+          if (item.duration === "3 Hours") durationMins = 180;
+          if (item.duration === "All Day") durationMins = 600;
+
+          const itemIdStr = String(item.id);
+          const cleanGameId = itemIdStr.startsWith("g") ? itemIdStr.substring(1) : itemIdStr;
+
+          return {
+            customer_id: userId,
+            table_id: realTableId || selectedTable,
+            boardgame_id: parseInt(cleanGameId, 10),
+            start_time: new Date().toISOString(),
+            end_time: new Date(Date.now() + durationMins * 60000).toISOString(),
+            duration: durationMins,
+            cost: item.price || 0,
+            status: 'Pending'
+          };
+        });
+
+        const { data: gameData, error: gameError } = await supabase
+          .from('game_sessions')
+          .insert(gameSessionInserts)
+          .select('id, boardgame_id');
+          
+        if (gameError) throw gameError;
+        if (gameData) {
+          gsInsertedData = gameData;
+          // Update boardgame status to "In Use"
+          const boardgameIds = gameData.map(g => g.boardgame_id);
+          if (boardgameIds.length > 0) {
+            await supabase.from('boardgames').update({ status: 'In Use' }).in('id', boardgameIds);
+          }
+        }
+      }
+
+      // Save the number of players in localStorage for History view
+      try {
+        const savedPlayers = localStorage.getItem("sebangku_order_players");
+        const playersMap = savedPlayers ? JSON.parse(savedPlayers) : {};
+        if (txId) {
+          playersMap[String(txId)] = selectedPlayers;
+        }
+        if (gsInsertedData.length > 0) {
+          gsInsertedData.forEach((gs: any) => {
+            playersMap[`gs-${gs.id}`] = selectedPlayers;
+          });
+        }
+        localStorage.setItem("sebangku_order_players", JSON.stringify(playersMap));
+      } catch (e) {
+        console.error("Failed to save players count", e);
       }
 
       // Call success callback to refresh parent data (transactions/history)
@@ -1738,14 +1812,18 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
       
     } catch (err: any) {
       console.error("Error saving checkout to Supabase", err);
+      alert(`Pemesanan Gagal: ${err.message || err.toString()}`);
       showToast?.(`Pemesanan gagal disimpan. Pastikan Anda sudah login. Error: ${err.message || err.toString()}`, "error", "Pemesanan Gagal");
+      setIsSubmitting(false);
       return; // Stop the success modal from showing
     }
     // -----------------------------------------
 
     setLastOrderId(orderId);
     setCart([]);
+    setShowQRISModal(false);
     setShowSuccess(true);
+    setIsSubmitting(false);
   };
 
   return (
@@ -1755,7 +1833,7 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
           <div>
             <h1 className="text-2xl font-black text-[#0F172A]">Menu &amp; Game Rental</h1>
-            <p className="text-xs text-[#64748B] mt-0.5">Pesan F&amp;B atau sewa Board Game langsung dari meja {tableId}</p>
+            <p className="text-xs text-[#64748B] mt-0.5">Pesan F&amp;B atau sewa Board Game langsung dari meja {selectedTable}</p>
           </div>
 
           {/* Search bar */}
@@ -1817,8 +1895,13 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
         </div>
 
         {/* Grid display */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {itemsToDisplay.map(item => (
+        {isLoadingCatalog ? (
+          <div className="flex items-center justify-center py-20 text-slate-400 text-sm">
+            Memuat data...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {itemsToDisplay.map(item => (
             <motion.div
               key={item.id}
               layout
@@ -1831,6 +1914,14 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
+
+              {(item.status === "In Use" || item.status === "Maintenance") && (
+                <div className="absolute inset-0 bg-slate-900/80 z-20 flex flex-col items-center justify-center text-center p-2">
+                  <span className="bg-red-500 text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-sm mb-1">
+                    {item.status}
+                  </span>
+                </div>
+              )}
 
               <div className="relative z-10 flex flex-col justify-between h-full w-full">
                 <div>
@@ -1854,7 +1945,8 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
                         addToCart(item);
                       }
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-bold transition-all shadow cursor-pointer"
+                    disabled={item.status === "In Use" || item.status === "Maintenance"}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#3B82F6] hover:bg-[#2563EB] disabled:bg-slate-500 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow cursor-pointer z-30 relative"
                   >
                     <Plus size={12} /> Tambah
                   </button>
@@ -1863,8 +1955,9 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
             </motion.div>
           ))}
         </div>
+        )}
 
-        {itemsToDisplay.length === 0 && (
+        {(!isLoadingCatalog && itemsToDisplay.length === 0) && (
           <div className="flex flex-col items-center justify-center py-16 text-center text-[#94A3B8] text-xs">
             Tidak ada menu yang sesuai pencarian.
           </div>
@@ -1880,7 +1973,7 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
           <h2 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
             Ringkasan Pesanan
           </h2>
-          <p className="text-xs text-[#64748B] mt-0.5">Meja: {tableId} · Customer: {userData.name}</p>
+          <p className="text-xs text-[#64748B] mt-0.5">Meja: {selectedTable} · Customer: {userData.name}</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-[220px]">
@@ -1955,7 +2048,7 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
                   onChange={(e) => setSelectedTable(e.target.value)}
                   className="w-full bg-white border border-[#E2E8F0] rounded-xl px-3 py-2 text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#3B82F6]"
                 >
-                  {["A1", "A2", "B1", "B2", "C1", "C2"].map(t => <option key={t} value={t}>{t}</option>)}
+                  {tables.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div className="w-[100px]">
@@ -2002,11 +2095,18 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
             </div>
 
             <button
+              disabled={isSubmitting}
               onClick={handleCheckout}
-              className="w-full py-3 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              className={`w-full py-3 rounded-xl text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 ${isSubmitting ? 'bg-slate-400 cursor-wait' : 'bg-[#3B82F6] hover:bg-[#2563EB] cursor-pointer'}`}
             >
-              <CheckCircle size={14} />
-              Bayar Sekarang
+              {isSubmitting ? (
+                <>Loading...</>
+              ) : (
+                <>
+                  <CheckCircle size={14} />
+                  Bayar Sekarang
+                </>
+              )}
             </button>
           </div>
         )}
@@ -2069,19 +2169,19 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
               <div className="w-full flex flex-col gap-2">
                 {qrisStatus === "pending" && (
                   <button
-                    onClick={() => {
+                    disabled={isSubmitting}
+                    onClick={async () => {
                       setQrisStatus("success");
-                      setTimeout(() => {
-                        setShowQRISModal(false);
-                        processOrder();
-                      }, 1000);
+                      await new Promise(r => setTimeout(r, 1000));
+                      await processOrder();
                     }}
-                    className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    className={`w-full py-2.5 rounded-xl text-white text-xs font-bold transition-all shadow-sm ${isSubmitting ? 'bg-slate-400 cursor-wait' : 'bg-emerald-500 hover:bg-emerald-600 cursor-pointer'}`}
                   >
-                    Simulasikan Pembayaran Sukses
+                    {isSubmitting ? "Memproses..." : "Simulasikan Pembayaran Sukses"}
                   </button>
                 )}
                 <button
+                  disabled={isSubmitting}
                   onClick={() => setShowQRISModal(false)}
                   className="w-full py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold transition-all hover:bg-slate-50 cursor-pointer"
                 >
@@ -2242,26 +2342,136 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
       if (!authData.user) return;
       const userId = authData.user.id;
 
-      const { data, error } = await supabase
-        .from('customer_transactions')
-        .select('*')
-        .eq('user_id', userId)
+      const { data: tablesData } = await supabase.from('cafe_tables').select('*');
+      const tableMap: Record<string, string> = {};
+      tablesData?.forEach(t => tableMap[t.id] = String(t.table_no || t.name || t.id));
+
+      const { data: txData } = await supabase
+        .from('transactions')
+        .select(`
+          id, total, status, created_at, table_id,
+          transaction_details (
+            qty, price, menus (name, image)
+          )
+        `)
+        .eq('customer_id', userId)
         .order('created_at', { ascending: false });
 
-      if (data) {
-        const mapped = data.map((tx: any) => ({
+      const { data: gsData } = await supabase
+        .from('game_sessions')
+        .select(`
+          id, duration, cost, status, start_time, table_id,
+          boardgames (name, image)
+        `)
+        .eq('customer_id', userId)
+        .order('start_time', { ascending: false });
+
+      const merged: any[] = [];
+      
+      const hashString = (str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return Math.abs(hash);
+      };
+
+      let playersMap: Record<string, number> = {};
+      try {
+        const savedPlayers = localStorage.getItem("sebangku_order_players");
+        if (savedPlayers) playersMap = JSON.parse(savedPlayers);
+      } catch (e) {}
+
+      txData?.forEach((tx: any) => {
+        const items = tx.transaction_details?.map((d: any) => {
+           const menuName = d.menus?.name || "Item FnB";
+           
+           let fallbackImage = "";
+           const lowerName = menuName.toLowerCase();
+           if (lowerName.includes("chicken") || lowerName.includes("ayam") || lowerName.includes("nasi") || lowerName.includes("mie")) {
+             fallbackImage = "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=200&fit=crop&q=80"; // Food
+           } else if (lowerName.includes("es ") || lowerName.includes("kopi") || lowerName.includes("tea") || lowerName.includes("drink")) {
+             fallbackImage = "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=200&fit=crop&q=80"; // Drink
+           } else {
+             const exactFallback = PRODUCTS_FALLBACK.find(m => m.name.toLowerCase() === lowerName);
+             const randomFallback = PRODUCTS_FALLBACK[hashString(menuName) % PRODUCTS_FALLBACK.length];
+             fallbackImage = exactFallback?.image || randomFallback?.image || "";
+           }
+
+           const menuImage = d.menus?.image || fallbackImage;
+           return {
+             name: menuName, price: d.price, quantity: d.qty, image: menuImage 
+           };
+        }) || [];
+        
+        merged.push({
           id: tx.id,
+          type: "tx",
           customerName: userData.name,
-          items: tx.details?.filter((i: any) => i.id?.startsWith("p")) || [],
-          rentals: tx.details?.filter((i: any) => i.id?.startsWith("g")) || [],
-          totalAmount: tx.amount,
-          status: tx.status || "paid",
+          items: items,
+          rentals: [],
+          totalAmount: tx.total,
+          status: tx.status === 'Pending' ? 'paid' : (tx.status === 'Success' ? 'acknowledged' : tx.status),
           createdAt: tx.created_at,
-          table: (tx.table_no && tx.table_no.length > 10) ? "A1" : (tx.table_no || "A1"),
-          players: tx.players_count || 1
-        }));
-        setOrders(mapped);
-      }
+          table: tableMap[tx.table_id] || tx.table_id || "A1",
+          players: playersMap[String(tx.id)] || 1
+        });
+      });
+
+      gsData?.forEach((gs: any) => {
+        const gsTime = new Date(gs.start_time).getTime();
+        const match = merged.find(m => Math.abs(new Date(m.createdAt).getTime() - gsTime) < 300000); // 5 minute threshold
+        
+        const gameName = gs.boardgames?.name || "Board Game";
+        const exactFallbackGame = RENT_GAMES_FALLBACK.find(g => g.name.toLowerCase() === gameName.toLowerCase());
+        const randomFallbackGame = RENT_GAMES_FALLBACK[hashString(gameName) % RENT_GAMES_FALLBACK.length];
+        const gameImage = gs.boardgames?.image || exactFallbackGame?.image || randomFallbackGame?.image || "";
+
+        if (match) {
+          // Verify it's not already added to avoid duplicates if React StrictMode fires twice
+          const alreadyAdded = match.rentals.find((r: any) => r.name === gameName && r.price === gs.cost);
+          if (!alreadyAdded) {
+            match.rentals.push({
+              id: gs.id,
+              name: gameName,
+              price: gs.cost,
+              image: gameImage,
+              duration: gs.duration ? `${gs.duration} Mins` : "120 Mins"
+            });
+          }
+          // Also set the player count to the session's player count if the parent tx didn't have one explicitly
+          if (playersMap[`gs-${gs.id}`] && !playersMap[String(match.id)]) {
+             match.players = playersMap[`gs-${gs.id}`];
+          }
+          // DO NOT ADD TO match.totalAmount, because tx.total already includes the rental cost in processOrder!
+        } else {
+          merged.push({
+            id: `gs-${gs.id}`,
+            type: "gs",
+            customerName: userData.name,
+            items: [],
+            rentals: [{ 
+              id: gs.id,
+              name: gameName, 
+              price: gs.cost,
+              image: gameImage,
+              duration: gs.duration ? `${gs.duration} Mins` : "120 Mins" 
+            }],
+            totalAmount: gs.cost,
+            status: gs.status === 'Pending' ? 'paid' : (gs.status === 'Active' ? 'in_progress' : 'completed'),
+            createdAt: gs.start_time,
+            table: tableMap[gs.table_id] || gs.table_id || "A1",
+            players: playersMap[`gs-${gs.id}`] || 1
+          });
+        }
+      });
+      
+      const savedHidden = localStorage.getItem("sebangku_hidden_orders");
+      const hiddenIds = savedHidden ? JSON.parse(savedHidden) : [];
+      const visibleOrders = merged.filter(o => !hiddenIds.includes(String(o.id)));
+
+      visibleOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setOrders(visibleOrders);
     } catch (e) {
       console.error(e);
     }
@@ -2273,31 +2483,54 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
       if (!authData.user) return;
       const userId = authData.user.id;
 
-      const { data, error } = await supabase
-        .from('customer_game_history')
-        .select('*')
-        .eq('user_id', userId)
-        .in('status', ['PENDING', 'in_progress']) // Show both pending and active
-        .order('created_at', { ascending: false });
+      const { data: tablesData } = await supabase.from('cafe_tables').select('*');
+      const tableMap: Record<string, string> = {};
+      tablesData?.forEach(t => tableMap[t.id] = String(t.table_no || t.name || t.id));
+
+      const { data } = await supabase
+        .from('game_sessions')
+        .select(`
+          id, duration, status, start_time, table_id, end_time, cost,
+          boardgames (name, image)
+        `)
+        .eq('customer_id', userId)
+        .in('status', ['Pending', 'Active'])
+        .order('start_time', { ascending: false });
+
+      const hashString = (str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return Math.abs(hash);
+      };
 
       if (data) {
         const mapped = data.map((s: any) => {
-          let totalSeconds = 7200;
-          if (s.duration) {
-            const hMatch = s.duration.match(/(\d+)\s*Hour/i);
-            if (hMatch) totalSeconds = parseInt(hMatch[1]) * 3600;
-          }
-          const elapsed = Math.floor((Date.now() - new Date(s.created_at).getTime()) / 1000);
-          const secondsLeft = Math.max(0, totalSeconds - elapsed);
+          const endTimeStr = s.end_time.includes("Z") || s.end_time.includes("+") ? s.end_time : `${s.end_time}Z`;
+          const endTime = new Date(endTimeStr).getTime();
+          const now = new Date().getTime();
+          let secondsLeft = Math.max(0, Math.floor((endTime - now) / 1000));
           
+          if (s.status === 'Pending') {
+            secondsLeft = s.duration * 60;
+          }
+
+          const gameName = s.boardgames?.name || "Board Game";
+          const exactFallbackGame = RENT_GAMES_FALLBACK.find(g => g.name.toLowerCase() === gameName.toLowerCase());
+          const randomFallbackGame = RENT_GAMES_FALLBACK[hashString(gameName) % RENT_GAMES_FALLBACK.length];
+          const gameImage = s.boardgames?.image || exactFallbackGame?.image || randomFallbackGame?.image || "";
+
           return {
             id: s.id,
             name: userData.name,
-            table: (s.table_no && s.table_no.length > 10) ? "A1" : (s.table_no || "A1"),
-            game: s.game_name,
-            duration: s.duration,
+            table: tableMap[s.table_id] || s.table_id || "A1",
+            game: gameName,
+            image: gameImage,
+            duration: `${s.duration} Mins`,
             secondsLeft: secondsLeft,
-            status: s.status
+            cost: s.cost || 0,
+            status: s.status === 'Pending' ? 'paid' : (s.status === 'Active' ? 'in_progress' : 'completed')
           };
         });
         setActiveSessions(mapped);
@@ -2353,14 +2586,17 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
   const handleClearOrders = async () => {
     setIsClearing(true);
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) throw new Error("Belum login");
-      const { error } = await supabase
-        .from('customer_transactions')
-        .delete()
-        .eq('user_id', authData.user.id)
-        .eq('status', 'completed');
-      if (error) throw error;
+      const ordersToHide = orders.filter(o => {
+        const s = String(o.status).toLowerCase();
+        return s === 'completed' || s === 'acknowledged' || s === 'success' || s === 'cancelled';
+      }).map(o => String(o.id));
+      
+      if (ordersToHide.length > 0) {
+        const savedHidden = localStorage.getItem("sebangku_hidden_orders");
+        const hiddenIds = savedHidden ? JSON.parse(savedHidden) : [];
+        const newHidden = [...new Set([...hiddenIds, ...ordersToHide])];
+        localStorage.setItem("sebangku_hidden_orders", JSON.stringify(newHidden));
+      }
       setShowClearConfirm(false);
       showToast?.("Riwayat pesanan yang selesai berhasil dihapus.", "success", "Riwayat Dihapus");
       loadOrders();
@@ -2371,29 +2607,80 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
     setIsClearing(false);
   };
 
-  const handleMarkComplete = async (order: any) => {
+  const handleOpenReview = (order: any) => {
+    // Trigger Review Modal without changing DB status
+    setSelectedOrder(order);
+    setRating(5);
+    setComment("");
+    setSuggestion("");
+    setPhotoBase64(null);
+    setGameStatus("WIN");
+    setShowReviewModal(true);
+  };
+
+  const handleEndSessionFromOrder = async (order: any) => {
     try {
-      const { error } = await supabase
-        .from('customer_transactions')
-        .update({ status: 'completed' })
-        .eq('id', order.id);
+      if (order.rentals && order.rentals.length > 0) {
+        for (const rental of order.rentals) {
+          if (rental.id) {
+            await supabase.from('game_sessions').update({ status: 'Completed', end_time: new Date().toISOString() }).eq('id', rental.id);
+            // Get boardgame_id to update its status to Available
+            const { data: sessionData } = await supabase.from('game_sessions').select('boardgame_id').eq('id', rental.id).single();
+            if (sessionData?.boardgame_id) {
+              await supabase.from('boardgames').update({ status: 'Available' }).eq('id', sessionData.boardgame_id);
+            }
+          }
+        }
+        showToast?.("Sesi permainan berhasil diakhiri.", "success", "Sesi Berakhir");
+      }
+      
+      // Also hide it from history automatically based on user request
+      const savedHidden = localStorage.getItem("sebangku_hidden_orders");
+      const hiddenIds = savedHidden ? JSON.parse(savedHidden) : [];
+      const newHidden = [...new Set([...hiddenIds, String(order.id)])];
+      localStorage.setItem("sebangku_hidden_orders", JSON.stringify(newHidden));
 
-      if (error) throw error;
+      loadOrders();
+      loadActiveSessions();
+      if (onRefresh) onRefresh();
+      
+      handleOpenReview(order);
+    } catch (e: any) {
+      console.error("Gagal mengakhiri sesi dari pesanan", e);
+      handleOpenReview(order);
+    }
+  };
 
-      // Optimistically update UI
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'completed' } : o));
+  const handleCancelOrder = async (order: any) => {
+    try {
+      if (order.type === 'tx') {
+        await supabase.from('transactions').update({ status: 'Cancelled' }).eq('id', order.id);
+      }
+      if (order.rentals && order.rentals.length > 0) {
+        for (const rental of order.rentals) {
+          if (rental.id) {
+            const { data } = await supabase.from('game_sessions').select('boardgame_id').eq('id', rental.id).single();
+            // Delete the game session entirely since "Cancelled" is not a valid enum value for session_status
+            await supabase.from('game_sessions').delete().eq('id', rental.id);
+            
+            if (data?.boardgame_id) {
+              await supabase.from('boardgames').update({ status: 'Available' }).eq('id', data.boardgame_id);
+            }
+          }
+        }
+      }
+      
+      const savedHidden = localStorage.getItem("sebangku_hidden_orders");
+      const hiddenIds = savedHidden ? JSON.parse(savedHidden) : [];
+      const newHidden = [...new Set([...hiddenIds, String(order.id)])];
+      localStorage.setItem("sebangku_hidden_orders", JSON.stringify(newHidden));
 
-      // Trigger Review Modal
-      setSelectedOrder(order);
-      setRating(5);
-      setComment("");
-      setSuggestion("");
-      setPhotoBase64(null);
-      setGameStatus("WIN");
-      setShowReviewModal(true);
-    } catch (e) {
-      console.error("Gagal menandai selesai", e);
-      showToast?.("Gagal memperbarui status pesanan. Coba lagi.", "error", "Terjadi Kesalahan");
+      showToast?.("Pesanan berhasil dibatalkan dan dihapus dari riwayat.", "success", "Pesanan Dibatalkan");
+      loadOrders();
+      loadActiveSessions();
+      if (onRefresh) onRefresh();
+    } catch (e: any) {
+      showToast?.("Gagal membatalkan pesanan", "error", "Error");
     }
   };
 
@@ -2416,19 +2703,6 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
     e.preventDefault();
     if (!selectedOrder) return;
 
-    // Update customer_game_history with the review details and Win/Lose status
-    try {
-      const { data: authData } = await supabase.auth.getUser();
-      if (authData.user) {
-        await supabase.from('customer_game_history')
-          .update({ rating: rating, comment: comment, status: gameStatus })
-          .eq('user_id', authData.user.id)
-          .in('status', ['in_progress', 'PENDING']);
-      }
-    } catch (err) {
-      console.error("Failed to update game history with review:", err);
-    }
-
     // Collect item names from order
     const itemNames = [
       ...selectedOrder.items.map((i: any) => i.name),
@@ -2444,9 +2718,70 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
       photo: photoBase64,
       items: itemNames,
       gameSuggestion: suggestion,
+      gameStatus: gameStatus,
       createdAt: new Date().toISOString(),
       isVisible: true
     };
+
+    // Save game history to Supabase if it contains a rental
+    if (selectedOrder.rentals?.length > 0) {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData.user) {
+          const rental = selectedOrder.rentals[0];
+          const todayStr = new Date().toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+          await supabase.from('customer_game_history').insert([{
+            user_id: authData.user.id,
+            name: userData.name,
+            game_name: rental.name,
+            game_image: rental.image || "",
+            rating: rating,
+            comment: comment,
+            status: gameStatus,
+            duration: rental.duration || "2 Hours",
+            table_no: selectedOrder.table || "A1",
+            table_name: selectedOrder.table || "A1",
+            players: selectedOrder.players || 1,
+            players_count: selectedOrder.players || 1,
+            transaction_id: null, // Avoid UUID syntax error
+            date: todayStr
+          }]);
+          
+          await supabase.from('customer_visits').insert([{
+            user_id: authData.user.id,
+            date: todayStr,
+            time: new Date().toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+            duration: rental.duration || "2 Hours",
+            table_name: selectedOrder.table || "A1",
+            friends: selectedOrder.players || 1,
+            spending: selectedOrder.totalAmount || rental.price || 0,
+            game_played: rental.name,
+            game_image: rental.image || ""
+          }]);
+          
+          const allDetails = [
+            ...(selectedOrder.items || []).map((i: any) => ({ name: i.name, price: i.price, image: i.image })),
+            ...(selectedOrder.rentals || []).map((r: any) => ({ name: r.name, price: r.price, image: r.image }))
+          ];
+          
+          await supabase.from('customer_transactions').insert([{
+            user_id: authData.user.id,
+            date: todayStr,
+            items: itemNames.join(" • "),
+            items_summary: itemNames.join(" • "),
+            amount: selectedOrder.totalAmount || rental.price || 0,
+            method: selectedOrder.method || "Cash",
+            payment_method: selectedOrder.method || "Cash",
+            details: allDetails,
+            table_no: selectedOrder.table || "A1",
+            players_count: selectedOrder.players || 1,
+            status: 'Completed'
+          }]);
+        }
+      } catch (err) {
+        console.error("Failed to insert into customer_game_history", err);
+      }
+    }
 
     const savedReviews = localStorage.getItem("sebangku_reviews");
     const reviewsList = savedReviews ? JSON.parse(savedReviews) : [];
@@ -2466,17 +2801,23 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    const s = String(status).toLowerCase();
+    switch (s) {
       case "paid":
+      case "pending":
         return <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-blue-100">PAID (Menunggu Kasir)</span>;
       case "acknowledged":
+      case "success":
         return <span className="bg-yellow-50 text-yellow-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-yellow-100">DITERIMA</span>;
       case "in_progress":
+      case "active":
         return <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-100 animate-pulse">BERJALAN (SESSION AKTIF)</span>;
       case "completed":
         return <span className="bg-slate-100 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-slate-200">SELESAI</span>;
+      case "cancelled":
+        return <span className="bg-red-50 text-red-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-red-200">DIBATALKAN</span>;
       default:
-        return <span className="bg-slate-100 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded-full">{status}</span>;
+        return <span className="bg-slate-100 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">{status}</span>;
     }
   };
 
@@ -2511,7 +2852,10 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
           <h1 className="text-2xl font-black text-[#0F172A]">Pesanan Saya</h1>
           <p className="text-xs text-[#64748B] mt-0.5">Kelola status pemesanan, lihat sisa sesi board game, cetak bukti bayar, dan beri ulasan.</p>
         </div>
-        {orders.some(o => o.status === 'completed') && (
+        {orders.some(o => {
+          const s = String(o.status).toLowerCase();
+          return s === 'completed' || s === 'acknowledged' || s === 'success' || s === 'cancelled';
+        }) && (
           <button
             onClick={() => setShowClearConfirm(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer shrink-0 mt-1"
@@ -2532,30 +2876,36 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
               const isEndingSoon = session.secondsLeft < 600; // < 10 mins
 
               return (
-                <div key={session.id} className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm flex flex-col gap-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-sm font-black text-[#0F172A]">{session.game}</h4>
-                      <p className="text-[10px] text-[#64748B] font-semibold mt-0.5">Meja: {session.table} · Paket: {session.duration}</p>
+                <div key={session.id} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex items-center gap-4">
+                  <div className="w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-slate-100 shadow-inner border border-slate-200">
+                    {session.image ? (
+                       <img src={session.image} alt={session.game} className="w-full h-full object-cover" />
+                    ) : (
+                       <div className="w-full h-full flex items-center justify-center text-2xl">🎲</div>
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-sm font-black text-[#0F172A]">{session.game}</h4>
+                        <p className="text-[10px] text-[#64748B] font-semibold mt-0.5">Meja: {session.table} · Paket: {session.duration}</p>
+                      </div>
+                      <span className={`text-xs font-black px-2 py-1 rounded-xl tracking-wider ${isEndingSoon ? "bg-red-50 text-red-500 border border-red-100 animate-pulse" : "bg-emerald-50 text-emerald-500 border border-emerald-100"
+                        }`}>
+                        {formatTime(session.secondsLeft)}
+                      </span>
                     </div>
-                    <span className={`text-xs font-black px-2 py-1 rounded-xl tracking-wider ${isEndingSoon ? "bg-red-50 text-red-500 border border-red-100 animate-pulse" : "bg-emerald-50 text-emerald-500 border border-emerald-100"
-                      }`}>
-                      {formatTime(session.secondsLeft)}
-                    </span>
-                  </div>
 
-                  {/* Progress Bar */}
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-1000 ${isEndingSoon ? "bg-red-500" : "bg-emerald-500"
-                        }`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-
-                  <div className="flex justify-between items-center text-[10px] font-bold text-[#94A3B8]">
-                    <span>Sisa Waktu Bermain</span>
-                    <span>{Math.round(pct)}% Tersisa</span>
+                    {/* Progress Bar only */}
+                    <div className="flex flex-col gap-2 mt-1">
+                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-1000 ${isEndingSoon ? "bg-red-500" : "bg-emerald-500"
+                            }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
@@ -2583,20 +2933,40 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
             </div>
 
             {/* Items display */}
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-3">
               {order.items.map((item: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-center text-xs">
-                  <span className="font-semibold text-slate-700">{item.quantity}x {item.name}</span>
-                  <span className="font-bold text-[#0F172A]">Rp {(item.price * item.quantity).toLocaleString("id-ID")}</span>
+                <div key={idx} className="flex gap-3 items-center border border-slate-100 rounded-xl p-2.5 bg-slate-50">
+                  <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-white shadow-sm border border-slate-200">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-lg">🍽️</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-xs text-[#0F172A] truncate">{item.name}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold">{item.quantity}x @ Rp {item.price.toLocaleString("id-ID")}</p>
+                  </div>
+                  <span className="font-black text-sm text-[#0F172A] shrink-0">Rp {(item.price * item.quantity).toLocaleString("id-ID")}</span>
                 </div>
               ))}
 
               {order.rentals.map((rental: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-center text-xs text-[#3B82F6]">
-                  <span className="font-semibold flex items-center gap-1">
-                    <Gamepad2 size={12} /> {rental.name} ({rental.duration || "2 Jam"})
-                  </span>
-                  <span className="font-bold">Rp {rental.price.toLocaleString("id-ID")}</span>
+                <div key={idx} className="flex gap-3 items-center border border-blue-50/50 rounded-xl p-2.5 bg-blue-50/30">
+                  <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-white shadow-sm border border-blue-100">
+                    {rental.image ? (
+                      <img src={rental.image} alt={rental.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-lg">🎲</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-xs text-[#3B82F6] truncate flex items-center gap-1">
+                       {rental.name}
+                    </p>
+                    <p className="text-[10px] text-blue-400 font-semibold">Durasi: {rental.duration || "2 Jam"}</p>
+                  </div>
+                  <span className="font-black text-sm text-[#3B82F6] shrink-0">Rp {rental.price.toLocaleString("id-ID")}</span>
                 </div>
               ))}
             </div>
@@ -2618,13 +2988,40 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
                   <Printer size={13} /> Cetak Receipt
                 </button>
 
-                {order.status === "in_progress" && (
+                {/* Cancel Button for Pending Orders */}
+                {order.status === 'paid' && (
                   <button
-                    onClick={() => handleMarkComplete(order)}
-                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-1 cursor-pointer"
+                    onClick={() => handleCancelOrder(order)}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-500 text-xs font-bold transition-colors cursor-pointer"
                   >
-                    Tandai Selesai &amp; Ulas
+                    <X size={14} /> Batalkan Pesanan
                   </button>
+                )}
+
+                {/* Review Button for completed/acknowledged/in_progress orders */}
+                {(order.status === "acknowledged" || order.status === "completed" || order.status === "success" || order.status === "in_progress") && (
+                  (() => {
+                    const savedReviews = localStorage.getItem("sebangku_reviews");
+                    const reviewsList = savedReviews ? JSON.parse(savedReviews) : [];
+                    const isReviewed = reviewsList.some((r: any) => String(r.orderId) === String(order.id));
+                    
+                    if (isReviewed) {
+                      return (
+                        <button disabled className="px-4 py-2 bg-slate-100 text-slate-400 text-xs font-bold rounded-xl shadow-sm border border-slate-200 cursor-not-allowed">
+                          Selesai
+                        </button>
+                      );
+                    }
+                    
+                    return (
+                      <button
+                        onClick={() => handleEndSessionFromOrder(order)}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                      >
+                        {order.rentals && order.rentals.length > 0 ? "Akhiri Sesi & Beri Ulasan" : "Beri Ulasan"}
+                      </button>
+                    );
+                  })()
                 )}
               </div>
             </div>
@@ -3035,8 +3432,43 @@ export default function CustomerPage() {
           details: tx.details || []
         })));
         
-        // Also map to visits (since visits are basically transactions)
-        // Or if we want specific game visits, we map from game history. 
+        // We will fetch visits from customer_visits directly now.
+      }
+
+      // Fetch visits directly from customer_visits
+      const { data: visitData } = await supabase
+        .from('customer_visits')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (visitData && visitData.length > 0) {
+        let totalBelanja = 0;
+        setVisits(visitData.map((v: any) => {
+          totalBelanja += v.spending || 0;
+          return {
+            id: v.id,
+            date: v.date || new Date(v.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+            time: v.time || new Date(v.created_at).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+            gameName: v.game_played || "Kunjungan Cafe", 
+            gameImage: v.game_image || "", 
+            duration: v.duration || "1h 00m",
+            table: v.table_name || "A1", 
+            friends: v.friends || 1,
+            spending: v.spending || 0
+          };
+        }));
+        
+        const totalTransaksi = txData?.length || 0;
+        const rataRataKunjungan = totalTransaksi > 0 ? Math.round(totalBelanja / totalTransaksi) : 0;
+        setUserData(prev => ({
+          ...prev,
+          totalBelanjaFNB: totalBelanja,
+          totalTransaksi: totalTransaksi,
+          rataRataKunjungan: rataRataKunjungan
+        }));
+      } else if (txData) {
+        // Fallback for old data
         let totalBelanja = 0;
         let totalTransaksi = txData.length;
         
@@ -3515,6 +3947,9 @@ export default function CustomerPage() {
 
       {/* ── MOBILE BOTTOM NAV ── */}
       <MobileBottomNav active={activePage} onNavigate={handleNavigate} />
+
+      {/* ── TOAST NOTIFICATIONS ── */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
