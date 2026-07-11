@@ -1577,7 +1577,7 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
       };
 
       if (menuData) {
-        setProducts(menuData.map(m => {
+        setProducts(menuData.map((m: any) => {
           const exactFallback = PRODUCTS_FALLBACK.find(f => f.name.toLowerCase() === (m.name || "").toLowerCase())?.image;
           const randomFallback = PRODUCTS_FALLBACK[hashString(m.name || "") % PRODUCTS_FALLBACK.length]?.image;
           return {
@@ -1592,7 +1592,7 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
       }
       
       if (gameData) {
-        setRentGames(gameData.map(g => {
+        setRentGames(gameData.map((g: any) => {
           const exactFallback = RENT_GAMES_FALLBACK.find(f => f.name.toLowerCase() === (g.name || "").toLowerCase())?.image;
           const randomFallback = RENT_GAMES_FALLBACK[hashString(g.name || "") % RENT_GAMES_FALLBACK.length]?.image;
           return {
@@ -1779,7 +1779,7 @@ function PesanPage({ userData, onOrderSuccess, onNotify, showToast }: PesanPageP
         if (gameData) {
           gsInsertedData = gameData;
           // Update boardgame status to "In Use"
-          const boardgameIds = gameData.map(g => g.boardgame_id);
+          const boardgameIds = gameData.map((g: any) => g.boardgame_id);
           if (boardgameIds.length > 0) {
             await supabase.from('boardgames').update({ status: 'In Use' }).in('id', boardgameIds);
           }
@@ -2344,7 +2344,7 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
 
       const { data: tablesData } = await supabase.from('cafe_tables').select('*');
       const tableMap: Record<string, string> = {};
-      tablesData?.forEach(t => tableMap[t.id] = String(t.table_no || t.name || t.id));
+      tablesData?.forEach((t: any) => tableMap[t.id] = String(t.table_no || t.name || t.id));
 
       const { data: txData } = await supabase
         .from('transactions')
@@ -2485,7 +2485,7 @@ function PesananPage({ userData, onRefresh, showToast }: { userData: typeof DEFA
 
       const { data: tablesData } = await supabase.from('cafe_tables').select('*');
       const tableMap: Record<string, string> = {};
-      tablesData?.forEach(t => tableMap[t.id] = String(t.table_no || t.name || t.id));
+      tablesData?.forEach((t: any) => tableMap[t.id] = String(t.table_no || t.name || t.id));
 
       const { data } = await supabase
         .from('game_sessions')
@@ -3569,7 +3569,7 @@ export default function CustomerPage() {
     // Subscribe to transaction updates for real-time notifications
     const channel = supabase
       .channel('customer-realtime')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customer_transactions' }, (payload) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customer_transactions' }, (payload: any) => {
         if (payload.new.status === 'in_progress') {
           const newNotif = {
             id: Date.now(),
@@ -3594,7 +3594,7 @@ export default function CustomerPage() {
           setNotifCount(c => c + 1);
         }
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customer_game_history' }, (payload) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customer_game_history' }, (payload: any) => {
          if (payload.new.status === 'in_progress') {
           const newNotif = {
             id: Date.now(),
