@@ -113,6 +113,7 @@ export function useKasirSupabase() {
             const txTime = new Date(item.created_at).getTime();
             const matchedRentals = gsData?.filter((gs: any) => 
               gs.customer_id === item.customer_id && 
+              gs.table_id === item.table_id &&
               Math.abs(new Date(gs.start_time).getTime() - txTime) < 300000
             ) || [];
 
